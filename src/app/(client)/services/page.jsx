@@ -2,6 +2,11 @@
 
 import Image from "next/image";
 import { Hammer, Home, Paintbrush, Ruler } from "lucide-react";
+import construction from "../../../../public/Images/services/construction.jpg"
+import interior from "../../../../public/Images/services/interior.jpg"
+import  Renovation from "../../../../public/Images/services/Renovation.jpg"
+import Drawing from "../../../../public/Images/services/Drawingss.jpg"
+
 
 export default function ServicePage() {
 	const services = [
@@ -11,7 +16,7 @@ export default function ServicePage() {
 			description:
 				"From concept to completion, we handle residential and commercial construction with quality materials, skilled labor, and timely delivery.",
 			icon: <Home className="w-10 h-10 text-lime-500" />,
-			image: "/images/services/construction.jpg"
+			image: construction,
 		},
 		{
 			id: 2,
@@ -19,7 +24,7 @@ export default function ServicePage() {
 			description:
 				"Our creative interior design team transforms spaces with modern, functional, and elegant designs that suit your personality and lifestyle.",
 			icon: <Paintbrush className="w-10 h-10 text-lime-500" />,
-			image: "/images/services/interior.jpg",
+			image: interior,
 		},
 		{
 			id: 3,
@@ -27,7 +32,7 @@ export default function ServicePage() {
 			description:
 				"Give your existing space a new life. We specialize in full home and office renovation with modern materials and design upgrades.",
 			icon: <Hammer className="w-10 h-10 text-lime-500" />,
-			image: "/images/services/renovation.jpg",
+			image: Renovation,
 		},
 		{
 			id: 4,
@@ -35,7 +40,7 @@ export default function ServicePage() {
 			description:
 				"Get expert architectural drawings, plans, and structural consultancy for your project — ensuring safety, compliance, and aesthetic value.",
 			icon: <Ruler className="w-10 h-10 text-lime-500" />,
-			image: "/images/services/drawingss.jpg",
+			image: Drawing,
 		},
 	];
 
