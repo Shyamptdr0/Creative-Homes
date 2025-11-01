@@ -13,6 +13,15 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 
+import {
+	NavigationMenu,
+	NavigationMenuContent,
+	NavigationMenuItem,
+	NavigationMenuLink,
+	NavigationMenuList,
+	NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
+
 import logo from "../../../../public/logo_1-removebg-preview.png";
 import logoName from "../../../../public/logo_2-removebg-preview.png";
 
@@ -90,8 +99,7 @@ export default function HeaderPage() {
 							{ name: "Our Projects", path: "/projects" },
 							{ name: "How it works", path: "/how-it-works" },
 							{ name: "Services", path: "/services" },
-							{ name: "About us", path: "/about-us" },
-							{ name: "Contact us", path: "/contact-us" },
+							{ name: "Cost Estimator", path: "/cost-estimator" },
 						].map((link) => (
 							<Link
 								key={link.path}
@@ -112,6 +120,44 @@ export default function HeaderPage() {
 								></span>
 							</Link>
 						))}
+
+						<NavigationMenu>
+							<NavigationMenuList>
+								<NavigationMenuItem>
+									<NavigationMenuTrigger className="text-gray-700 font-medium hover:text-blue-600 focus:text-blue-600 text-base cursor-pointer py-0 px-2">
+										More
+									</NavigationMenuTrigger>
+									<NavigationMenuContent className="p-3 min-w-[200px] bg-white rounded-lg shadow-md border border-gray-100">
+										<div className="flex flex-col space-y-2">
+											<Link
+												href="/client"
+												className="block px-3 py-2 text-base text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-600"
+											>
+												Join as Client
+											</Link>
+											<Link
+												href="/contractor"
+												className="block px-3 py-2 text-base text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-600"
+											>
+												Join as Contractor
+											</Link>
+											<Link
+												href="/about-us"
+												className="block px-3 py-2 text-base text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-600"
+											>
+												About Us
+											</Link>
+											<Link
+												href="/contact-us"
+												className="block px-3 py-2 text-base text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-600"
+											>
+												Contact Us
+											</Link>
+										</div>
+									</NavigationMenuContent>
+								</NavigationMenuItem>
+							</NavigationMenuList>
+						</NavigationMenu>
 					</nav>
 				</div>
 
@@ -132,7 +178,6 @@ export default function HeaderPage() {
 								</DialogTitle>
 							</DialogHeader>
 
-							{/* FORM CONTENT DIRECTLY HERE */}
 							<form className="space-y-6" onSubmit={handleSubmit}>
 								<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 									{/* Full Name */}
@@ -322,6 +367,9 @@ export default function HeaderPage() {
 						{ name: "Our Projects", path: "/projects" },
 						{ name: "How it works", path: "/how-it-works" },
 						{ name: "Services", path: "/services" },
+						{ name: "Cost Estimator", path:"/cost-estimator" },
+						{ name: "Join as Client", path: "/join/client" },
+						{ name: "Join as Contractor", path: "/join/contractor" },
 						{ name: "About us", path: "/about-us" },
 						{ name: "Contact us", path: "/contact-us" },
 					].map((link) => (
