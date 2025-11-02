@@ -7,14 +7,12 @@ export default function ClientProfile() {
 	const [client, setClient] = useState(null);
 
 	useEffect(() => {
-		const fetchProfile = async () => {
+		const fetchClient = async () => {
 			const token = sessionStorage.getItem("token");
 			if (!token) return;
 
-			const res = await fetch("/api/profile", {
-				headers: {
-					Authorization: `Bearer ${token}`,
-				},
+			const res = await fetch("/api/clients/profile", {
+				headers: { Authorization: `Bearer ${token}` },
 			});
 
 			const data = await res.json();
@@ -23,38 +21,25 @@ export default function ClientProfile() {
 			}
 		};
 
-		fetchProfile();
+		fetchClient();
 	}, []);
 
-	if (!client)
-		return <div className="flex justify-center items-center min-h-screen text-lg">Loading...</div>;
+	if (!client) return <p className="text-center mt-20">Loading Profile...</p>;
 
 	return (
-		<div className="p-6 flex justify-center h-auto bg-gray-100">
-			<Card className="max-w-lg w-full shadow-lg border border-gray-200 rounded-2xl">
+		<div className="p-6 flex justify-center bg-gray-100">
+			<Card className="max-w-lg w-full shadow-lg">
 				<CardHeader className="text-center">
-					<CardTitle className="text-2xl font-bold flex items-center justify-center gap-2">
-						<User className="h-6 w-6" /> Client Profile
+					<CardTitle className="flex items-center justify-center gap-2 text-xl font-bold">
+						<User /> Client Profile
 					</CardTitle>
-					<p className="text-sm text-gray-500">Dashboard / Profile</p>
 				</CardHeader>
-
-				<CardContent className="space-y-4 text-gray-700">
-					<p className="flex items-center gap-2">
-						<Badge className="h-5 w-5" /> <strong>ID:</strong> {client.clientId}
-					</p>
-					<p className="flex items-center gap-2">
-						<User className="h-5 w-5" /> <strong>Name:</strong> {client.name}
-					</p>
-					<p className="flex items-center gap-2">
-						<Mail className="h-5 w-5" /> <strong>Email:</strong> {client.email || "N/A"}
-					</p>
-					<p className="flex items-center gap-2">
-						<Phone className="h-5 w-5" /> <strong>Phone:</strong> {client.phone || "N/A"}
-					</p>
-					<p className="flex items-center gap-2">
-						<MapPin className="h-5 w-5" /> <strong>Address:</strong> {client.address || "N/A"}
-					</p>
+				<CardContent className="space-y-3">
+					<p className="flex gap-2"><Badge size={14}/> ID: {client.clientId}</p>
+					<p className="flex gap-2"><User size={14}/> Name: {client.name}</p>
+					<p className="flex gap-2"><Mail size={14}/> Email: {client.email}</p>
+					<p className="flex gap-2"><Phone size={14}/> Phone: {client.phone}</p>
+					<p className="flex gap-2"><MapPin size={14}/> Address: {client.address}</p>
 				</CardContent>
 			</Card>
 		</div>

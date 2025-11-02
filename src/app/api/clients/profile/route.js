@@ -5,9 +5,11 @@ import jwt from "jsonwebtoken";
 export async function GET(req) {
 	try {
 		const token = req.headers.get("authorization")?.split(" ")[1];
-		if (!token) return NextResponse.json({ success: false, msg: "No token provided" }, { status: 401 });
+		if (!token)
+			return NextResponse.json({ success: false, msg: "No token provided" }, { status: 401 });
 
 		const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
 		if (decoded.role !== "client") {
 			return NextResponse.json({ success: false, msg: "Unauthorized" }, { status: 403 });
 		}
@@ -17,11 +19,15 @@ export async function GET(req) {
 			attributes: { exclude: ["password"] },
 		});
 
-		if (!client) return NextResponse.json({ success: false, msg: "Client not found" }, { status: 404 });
+		if (!client)
+			return NextResponse.json({ success: false, msg: "Client not found" }, { status: 404 });
 
-		return NextResponse.json({ success: true, client });
-
+		return NextResponse.json({
+			success: true,
+			role: "client",
+			user: client,
+		});
 	} catch {
-		return NextResponse.json({ success: false, msg: "Invalid or expired token" }, { status: 401 });
+		return NextResponse.json({ success: false, msg: "Invalid token" }, { status: 401 });
 	}
 }
