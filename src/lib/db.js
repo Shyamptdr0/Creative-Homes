@@ -15,7 +15,6 @@ try {
 
 const isURL = !!process.env.DATABASE_URL;
 
-// ✅ Aiven supports SSL — must enable
 const sequelize = isURL
 	? new Sequelize(process.env.DATABASE_URL, {
 		dialect: "mysql",
@@ -25,6 +24,7 @@ const sequelize = isURL
 		dialectOptions: {
 			ssl: {
 				require: true,
+				rejectUnauthorized: false, // ✅ IMPORTANT FOR AIVEN
 			},
 		},
 	})
@@ -42,6 +42,7 @@ const sequelize = isURL
 			dialectOptions: {
 				ssl: {
 					require: true,
+					rejectUnauthorized: false, // ✅ IMPORTANT FOR LOCAL SSL HOSTS
 				},
 			},
 		}
