@@ -1,16 +1,25 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import SidebarPage from "@/components/SidebarPage";
 import AllPages from "@/app/admin/components/AllPages";
-import {Home, Users, HousePlus, HardHat, UserRound, CircleUser} from "lucide-react";
+import { Home, Users, HousePlus, HardHat, CircleUser } from "lucide-react";
 
 export default function AdminDashboard() {
+	const router = useRouter();
+
+	useEffect(() => {
+		const token = sessionStorage.getItem("token");
+		if (!token) router.push("/admin/login");
+	}, [router]);
+
 	const menuItems = [
 		{ title: "Home", icon: Home },
 		{ title: "Users", icon: Users },
 		{ title: "Project", icon: HousePlus },
 		{ title: "Stage", icon: HardHat },
-		{ title: "Profile", icon: CircleUser}
+		{ title: "Profile", icon: CircleUser }
 	];
 
 	return (
