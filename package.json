@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node run-migrations.mjs",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate": "sequelize-cli db:migrate",
+    "seed": "sequelize-cli db:seed:all"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
@@ -35,6 +37,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "sequelize": "^6.37.7",
+    "sequelize-cli": "^6.6.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1"
   },
