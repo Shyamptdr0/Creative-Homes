@@ -63,7 +63,10 @@ export default function ProjectsPage() {
 
 		await fetch(`/api/projects/${editing.id}`, {
 			method: "PUT",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+			},
 			body: JSON.stringify(data),
 		});
 
@@ -76,7 +79,13 @@ export default function ProjectsPage() {
 	async function handleDelete(id) {
 		if (!confirm("Delete this project?")) return;
 
-		await fetch(`/api/projects/${id}`, { method: "DELETE" });
+		await fetch(`/api/projects/${id}`, {
+			method: "DELETE",
+			headers: {
+				Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+			},
+		});
+
 		fetchProjects();
 	}
 

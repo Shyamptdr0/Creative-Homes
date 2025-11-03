@@ -1,27 +1,49 @@
 import { NextResponse } from "next/server";
 import Project from "@/models/Project";
+import Client from "@/models/Client";
+import Contractor from "@/models/Contractor";
+import Material from "@/models/Material"; // ✅ ADD
 import "@/lib/db";
 import jwt from "jsonwebtoken";
 
-function roleFilter(decoded) {
-	const { role, id } = decoded;
+// ✅ Get User From Token
+function getUser(req) {
+	const authHeader = req.headers.get("authorization");
+	if (!authHeader) return null;
 
-	if (role === "client") return { clientId: id };
-	if (role === "contractor") return { contractorId: id };
-	return {}; // admin sees everything
+	const token = authHeader.split(" ")[1];
+	if (!token) return null;
+
+	try {
+		return jwt.verify(token, process.env.JWT_SECRET);
+	} catch {
+		return null;
+	}
 }
 
-export async function GET(req, { params }) {
+// ✅ GET Project by ID
+export async function GET(req, context) {
 	try {
-		const token = req.headers.get("authorization")?.split(" ")[1];
-		const decoded = jwt.verify(token, process.env.JWT_SECRET);
+		const decoded = getUser(req);
+		if (!decoded)
+			return NextResponse.json({ success: false, error: "Token invalid" }, { status: 401 });
 
-		const filter = roleFilter(decoded);
-		filter.id = params.id;
+		const { id } = await context.params;
 
-		const project = await Project.findOne({ where: filter });
+		const filter = { id };
+		if (decoded.role === "client") filter.clientId = decoded.id;
+		if (decoded.role === "contractor") filter.contractorId = decoded.id;
 
-		if (!project) return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
+		const project = await Project.findOne({
+			where: filter,
+			include: [
+				{ model: Client, as: "client" },
+				{ model: Contractor, as: "contractor" },
+			]
+		});
+
+		if (!project)
+			return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
 
 		return NextResponse.json({ success: true, project });
 	} catch (err) {
@@ -29,44 +51,78 @@ export async function GET(req, { params }) {
 	}
 }
 
-export async function PUT(req, { params }) {
+// ✅ UPDATE Project
+export async function PUT(req, context) {
 	try {
-		const token = req.headers.get("authorization")?.split(" ")[1];
-		const decoded = jwt.verify(token, process.env.JWT_SECRET);
+		const authHeader = req.headers.get("authorization");
+		if (!authHeader)
+			return NextResponse.json({ success: false, msg: "No token" }, { status: 401 });
 
-		if (decoded.role !== "admin")
-			return NextResponse.json({ success: false, error: "Only admin can update projects" }, { status: 403 });
+		const token = authHeader.split(" ")[1];
+		let decoded;
+		try {
+			decoded = jwt.verify(token, process.env.JWT_SECRET);
+		} catch {
+			return NextResponse.json({ success: false, msg: "Invalid token" }, { status: 401 });
+		}
 
-		const body = await req.json();
-		const updated = await Project.update(body, { where: { id: params.id } });
+		const { id } = await context.params;
+		const data = await req.json();
 
-		if (!updated[0])
-			return NextResponse.json({ success: false, error: "No update or not found" }, { status: 404 });
+		const project = await Project.findByPk(id, {
+			include: [
+				{ model: Client, as: "client", attributes: ["id"] },
+				{ model: Contractor, as: "contractor", attributes: ["id"] },
+			],
+		});
 
-		const project = await Project.findByPk(params.id);
-		return NextResponse.json({ success: true, project });
+		if (!project)
+			return NextResponse.json({ success: false, msg: "Not found" }, { status: 404 });
 
+		if (decoded.role === "contractor" && project.contractorId !== decoded.id)
+			return NextResponse.json({ success: false, msg: "No permission" }, { status: 403 });
+
+		if (decoded.role === "client" && project.clientId !== decoded.id)
+			return NextResponse.json({ success: false, msg: "No permission" }, { status: 403 });
+
+		await project.update(data);
+
+		return NextResponse.json({ success: true, msg: "Updated", project });
 	} catch (err) {
 		console.error(err);
 		return NextResponse.json({ success: false, error: err.message }, { status: 500 });
 	}
 }
 
-export async function DELETE(req, { params }) {
+// ✅ DELETE Project
+export async function DELETE(req, context) {
 	try {
-		const token = req.headers.get("authorization")?.split(" ")[1];
-		const decoded = jwt.verify(token, process.env.JWT_SECRET);
+		const decoded = getUser(req);
+		if (!decoded)
+			return NextResponse.json({ success: false, error: "Token invalid" }, { status: 401 });
 
-		if (decoded.role !== "admin")
-			return NextResponse.json({ success: false, error: "Only admin can delete projects" }, { status: 403 });
+		const { id } = await context.params;
 
-		const deleted = await Project.destroy({ where: { id: params.id } });
+		const project = await Project.findByPk(id);
+		if (!project)
+			return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
 
-		if (!deleted) return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
+		// ✅ Only owner or admin can delete
+		if (decoded.role === "client" && project.clientId !== decoded.id)
+			return NextResponse.json({ success: false, error: "No permission" }, { status: 403 });
 
-		return NextResponse.json({ success: true, message: "Project deleted" });
+		if (decoded.role === "contractor" && project.contractorId !== decoded.id)
+			return NextResponse.json({ success: false, error: "No permission" }, { status: 403 });
 
+		// ✅ First delete related materials
+		await Material.destroy({ where: { projectId: id } });
+
+		// ✅ Now delete project
+		await Project.destroy({ where: { id } });
+
+		return NextResponse.json({ success: true, message: "Deleted" });
 	} catch (err) {
+		console.error("DELETE ERR:", err);
 		return NextResponse.json({ success: false, error: err.message }, { status: 500 });
 	}
 }
