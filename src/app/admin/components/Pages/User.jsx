@@ -78,7 +78,18 @@ export default function UserPage() {
 			return;
 		}
 
-		await fetch(`/api/admin/users/${deleteUser.id}`, { method: "DELETE" });
+		const res = await fetch(`/api/admin/users/${deleteUser.id}?role=${deleteUser.role}`, {
+			method: "DELETE"
+		});
+
+		const data = await res.json();
+
+		if (!res.ok) {
+			toast.error(data.msg || "Failed to delete user");
+			setOpenDeleteDialog(false);
+			setDeleteUser(null);
+			return;
+		}
 
 		toast.success("User deleted");
 		setOpenDeleteDialog(false);
@@ -86,12 +97,14 @@ export default function UserPage() {
 		fetchUsers();
 	};
 
+
 	const handleUpdate = async () => {
-		const res = await fetch(`/api/admin/users/${editUser.id}`, {
+		const res = await fetch(`/api/admin/users/${editUser.id}?role=${editUser.role}`, {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(editUser),
 		});
+
 		if (res.ok) {
 			toast.success("User updated");
 			setEditUser(null);

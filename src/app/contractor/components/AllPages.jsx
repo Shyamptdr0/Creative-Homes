@@ -3,13 +3,19 @@
 import HomePage from "@/app/contractor/components/Pages/Home";
 import ContractorStagesPage from "@/app/contractor/components/Pages/Stage";
 import ProfilePage from "@/app/contractor/components/Pages/Profile";
+import ProjectPage from "@/app/contractor/components/Pages/Project";
+import MaterialPage from "@/app/contractor/components/Pages/Material";
 
 export default function AllPages({activePage}) {
 	switch (activePage) {
 		case "Home":
 			return <HomePage/>;
+		case "Project":
+			return <ProjectPage/>;
 		case "Stage":
 			return <ContractorStagesPage/>;
+		case "Material":
+			return <MaterialPage/>
 		case "Profile":
 			return <ProfilePage/>
 		default:

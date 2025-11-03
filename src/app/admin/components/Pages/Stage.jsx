@@ -1,6 +1,28 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+
+import {
+	Select,
+	SelectTrigger,
+	SelectContent,
+	SelectItem,
+	SelectValue,
+} from "@/components/ui/select";
+
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
+	DialogTrigger,
+} from "@/components/ui/dialog";
+
 import {
 	Table,
 	TableBody,
@@ -9,379 +31,246 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-	Select,
-	SelectTrigger,
-	SelectValue,
-	SelectContent,
-	SelectItem,
-} from "@/components/ui/select";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { toast } from "sonner";
 
-export default function AdminStagesPage() {
+export default function StagePage() {
+	const [projects, setProjects] = useState([]);
 	const [stages, setStages] = useState([]);
-	const [loading, setLoading] = useState(true);
-	const [selectedStage, setSelectedStage] = useState(null);
-	const [newStage, setNewStage] = useState({
-		stageName: "",
-		progress: 0,
-		status: "pending",
-		notes: "",
+
+	const [openCreate, setOpenCreate] = useState(false);
+	const [editStage, setEditStage] = useState(null);
+	const [loading, setLoading] = useState(false);
+
+	const [form, setForm] = useState({
 		projectId: "",
+		name: "",
+		description: "",
+		startDate: "",
+		endDate: "",
 	});
 
-	const [projects, setProjects] = useState([]); // To show project list in dropdown
-
-	useEffect(() => {
-		fetchStages();
-		fetchProjects();
-	}, []);
+	const fetchProjects = async () => {
+		const res = await fetch("/api/projects");
+		const data = await res.json();
+		if (data.success) setProjects(data.projects);
+	};
 
 	const fetchStages = async () => {
-		try {
-			setLoading(true);
-			const res = await fetch("/api/admin/stages");
-			const data = await res.json();
-			setStages(data);
-		} catch (err) {
-			console.error(err);
-			toast.error("Error fetching stages");
-		} finally {
-			setLoading(false);
-		}
+		const res = await fetch(`/api/stages/all`);
+		const data = await res.json();
+		if (data.success) setStages(data.stages);
 	};
 
-	const fetchProjects = async () => {
-		try {
-			const res = await fetch("/api/admin/projects");
-			const data = await res.json();
-			setProjects(data);
-		} catch (err) {
-			console.error(err);
+	useEffect(() => {
+		fetchProjects();
+		fetchStages();
+	}, []);
+
+	// ✅ Create Stage
+	const handleSubmit = async (e) => {
+		e.preventDefault();
+		setLoading(true);
+
+		const res = await fetch("/api/stages/create", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(form),
+		});
+
+		const data = await res.json();
+		if (data.success) {
+			setForm({ projectId: "", name: "", description: "", startDate: "", endDate: "" });
+			setOpenCreate(false);
+			fetchStages();
 		}
+		setLoading(false);
 	};
 
-	const handleCreate = async () => {
-		if (!newStage.stageName || !newStage.projectId) {
-			toast.error("Please fill all required fields");
-			return;
-		}
-
-		try {
-			const res = await fetch("/api/admin/stages", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(newStage),
-			});
-
-			if (res.ok) {
-				toast.success("New stage created successfully");
-				setNewStage({
-					stageName: "",
-					progress: 0,
-					status: "pending",
-					notes: "",
-					projectId: "",
-				});
-				fetchStages();
-			} else {
-				toast.error("Failed to create stage");
-			}
-		} catch (err) {
-			console.error(err);
-			toast.error("Error creating stage");
-		}
-	};
-
-	const handleUpdate = async () => {
-		try {
-			const res = await fetch(`/api/admin/stages/${selectedStage.id}`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(selectedStage),
-			});
-
-			if (res.ok) {
-				toast.success("Stage updated successfully");
-				setSelectedStage(null);
-				fetchStages();
-			} else {
-				toast.error("Failed to update stage");
-			}
-		} catch (err) {
-			console.error(err);
-			toast.error("Error updating stage");
-		}
-	};
-
+	// ✅ Delete Stage
 	const handleDelete = async (id) => {
-		if (!confirm("Are you sure you want to delete this stage?")) return;
-		try {
-			const res = await fetch(`/api/admin/stages/${id}`, { method: "DELETE" });
-			if (res.ok) {
-				toast.success("Stage deleted successfully");
-				fetchStages();
-			} else {
-				toast.error("Failed to delete stage");
-			}
-		} catch (err) {
-			console.error(err);
-			toast.error("Error deleting stage");
-		}
+		if (!confirm("Are you sure?")) return;
+		await fetch(`/api/stages/${id}`, { method: "DELETE" });
+		setStages(stages.filter((s) => s.id !== id));
 	};
 
-	if (loading)
-		return (
-			<div className="flex justify-center items-center h-64">
-				<p>Loading stages...</p>
-			</div>
-		);
+	// ✅ Edit stage
+	const handleEditSubmit = async (e) => {
+		e.preventDefault();
+		await fetch(`/api/stages/${editStage.id}`, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(editStage),
+		});
+
+		setEditStage(null);
+		fetchStages();
+	};
+
+	// ✅ Only projects that have stages
+	const projectsWithStages = projects.filter((p) =>
+		stages.some((s) => s.projectId === p.id)
+	);
 
 	return (
 		<div className="p-6 space-y-6">
-			{/* ================= CREATE STAGE SECTION ================= */}
-			<Card className="border rounded-xl shadow-sm">
-				<CardHeader>
-					<CardTitle className="text-xl font-semibold flex justify-between items-center">
-						Add New Stage
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div>
-							<Label>Stage Name</Label>
-							<Input
-								value={newStage.stageName}
-								onChange={(e) =>
-									setNewStage({ ...newStage, stageName: e.target.value })
-								}
-								placeholder="e.g., Excavation, Slab Casting"
-							/>
-						</div>
+			<div className="flex justify-between items-center">
+				<h1 className="text-2xl font-bold"> Admin — Manage Stages</h1>
 
-						<div>
-							<Label>Project</Label>
-							<Select
-								value={newStage.projectId}
-								onValueChange={(val) =>
-									setNewStage({ ...newStage, projectId: val })
-								}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder="Select Project" />
-								</SelectTrigger>
-								<SelectContent>
-									{projects.map((project) => (
-										<SelectItem key={project.id} value={String(project.id)}>
-											{project.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
+				<Dialog open={openCreate} onOpenChange={setOpenCreate}>
+					<DialogTrigger asChild>
+						<Button>Add Stage</Button>
+					</DialogTrigger>
 
-						<div>
-							<Label>Progress (%)</Label>
-							<Input
-								type="number"
-								value={newStage.progress}
-								onChange={(e) =>
-									setNewStage({ ...newStage, progress: e.target.value })
-								}
-							/>
-						</div>
+					<DialogContent className="space-y-4">
+						<DialogHeader>
+							<DialogTitle>Create Stage</DialogTitle>
+						</DialogHeader>
 
-						<div>
-							<Label>Status</Label>
-							<Select
-								value={newStage.status}
-								onValueChange={(value) =>
-									setNewStage({ ...newStage, status: value })
-								}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder="Select status" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="pending">Pending</SelectItem>
-									<SelectItem value="in_progress">In Progress</SelectItem>
-									<SelectItem value="done">Done</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
+						<form onSubmit={handleSubmit} className="space-y-4">
+							<div className="space-y-2">
+								<Label>Select Project</Label>
+								<Select
+									value={form.projectId}
+									onValueChange={(v) => setForm({ ...form, projectId: v })}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Choose Project" />
+									</SelectTrigger>
+									<SelectContent>
+										{projects.map((p) => (
+											<SelectItem key={p.id} value={p.id.toString()}>
+												{p.title}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
 
-						<div className="md:col-span-2">
-							<Label>Notes</Label>
-							<Textarea
-								value={newStage.notes}
-								onChange={(e) =>
-									setNewStage({ ...newStage, notes: e.target.value })
-								}
-								placeholder="Additional details or remarks..."
-							/>
-						</div>
-					</div>
+							<div className="space-y-2">
+								<Label>Stage Name</Label>
+								<Input
+									value={form.name}
+									onChange={(e) => setForm({ ...form, name: e.target.value })}
+								/>
+							</div>
 
-					<div className="flex justify-end mt-4">
-						<Button onClick={handleCreate}>Add Stage</Button>
-					</div>
-				</CardContent>
-			</Card>
+							<div className="space-y-2">
+								<Label>Description</Label>
+								<Textarea
+									value={form.description}
+									onChange={(e) => setForm({ ...form, description: e.target.value })}
+								/>
+							</div>
 
-			{/* ================= EXISTING STAGES ================= */}
-			<Card className="shadow-md border rounded-xl">
-				<CardHeader>
-					<CardTitle className="text-2xl font-semibold">Manage Project Stages</CardTitle>
-				</CardHeader>
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<Label>Start Date</Label>
+									<Input
+										type="date"
+										value={form.startDate}
+										onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+									/>
+								</div>
 
-				<CardContent>
-					<div className="overflow-x-auto">
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>ID</TableHead>
-									<TableHead>Project</TableHead>
-									<TableHead>Stage Name</TableHead>
-									<TableHead>Progress</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Notes</TableHead>
-									<TableHead>Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{stages.map((stage) => (
-									<TableRow key={stage.id}>
-										<TableCell>{stage.id}</TableCell>
-										<TableCell>{stage.Project?.name || "—"}</TableCell>
-										<TableCell>{stage.stageName}</TableCell>
-										<TableCell>{stage.progress}%</TableCell>
-										<TableCell>{stage.status}</TableCell>
-										<TableCell className="max-w-[300px] truncate">
-											{stage.notes || "—"}
-										</TableCell>
-										<TableCell>
-											<div className="flex gap-2">
-												<Dialog>
-													<DialogTrigger asChild>
-														<Button
-															size="sm"
-															variant="outline"
-															onClick={() => setSelectedStage(stage)}
-														>
-															Edit
-														</Button>
-													</DialogTrigger>
+								<div>
+									<Label>End Date</Label>
+									<Input
+										type="date"
+										value={form.endDate}
+										onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+									/>
+								</div>
+							</div>
 
-													{selectedStage?.id === stage.id && (
-														<DialogContent className="max-w-lg">
-															<DialogHeader>
-																<DialogTitle>Edit Stage</DialogTitle>
-															</DialogHeader>
-															<div className="space-y-3">
-																<div>
-																	<Label>Stage Name</Label>
-																	<Input
-																		value={selectedStage.stageName}
-																		onChange={(e) =>
-																			setSelectedStage({
-																				...selectedStage,
-																				stageName: e.target.value,
-																			})
-																		}
-																	/>
-																</div>
+							<DialogFooter>
+								<Button disabled={loading} type="submit">
+									{loading ? "Creating..." : "Create Stage"}
+								</Button>
+							</DialogFooter>
+						</form>
+					</DialogContent>
+				</Dialog>
+			</div>
 
-																<div>
-																	<Label>Progress (%)</Label>
-																	<Input
-																		type="number"
-																		value={selectedStage.progress}
-																		onChange={(e) =>
-																			setSelectedStage({
-																				...selectedStage,
-																				progress: e.target.value,
-																			})
-																		}
-																	/>
-																</div>
+			{/* ✅ TABLE */}
+			<div className="border rounded-lg bg-white shadow">
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Project</TableHead>
+							<TableHead>Stage</TableHead>
+							<TableHead>Progress</TableHead>
+							<TableHead>Dates</TableHead>
+							<TableHead>Actions</TableHead>
+						</TableRow>
+					</TableHeader>
 
-																<div>
-																	<Label>Status</Label>
-																	<Select
-																		value={selectedStage.status}
-																		onValueChange={(value) =>
-																			setSelectedStage({
-																				...selectedStage,
-																				status: value,
-																			})
-																		}
-																	>
-																		<SelectTrigger>
-																			<SelectValue placeholder="Select status" />
-																		</SelectTrigger>
-																		<SelectContent>
-																			<SelectItem value="pending">Pending</SelectItem>
-																			<SelectItem value="in_progress">In Progress</SelectItem>
-																			<SelectItem value="done">Done</SelectItem>
-																		</SelectContent>
-																	</Select>
-																</div>
+					<TableBody>
+						{projectsWithStages.map((project) => {
+							const projectStages = stages.filter((s) => s.projectId === project.id);
 
-																<div>
-																	<Label>Notes</Label>
-																	<Textarea
-																		value={selectedStage.notes || ""}
-																		onChange={(e) =>
-																			setSelectedStage({
-																				...selectedStage,
-																				notes: e.target.value,
-																			})
-																		}
-																	/>
-																</div>
-
-																<div className="flex justify-end gap-2 mt-4">
-																	<Button
-																		variant="secondary"
-																		onClick={() => setSelectedStage(null)}
-																	>
-																		Cancel
-																	</Button>
-																	<Button onClick={handleUpdate}>Save Changes</Button>
-																</div>
-															</div>
-														</DialogContent>
-													)}
-												</Dialog>
-
-												<Button
-													size="sm"
-													variant="destructive"
-													onClick={() => handleDelete(stage.id)}
-												>
-													Delete
-												</Button>
-											</div>
-										</TableCell>
+							return (
+								<React.Fragment key={project.id}>
+									<TableRow className="bg-muted font-semibold">
+										<TableCell colSpan={5}>{project.title}</TableCell>
 									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					</div>
-				</CardContent>
-			</Card>
+
+									{projectStages.map((s) => (
+										<TableRow key={s.id}>
+											<TableCell></TableCell>
+											<TableCell>{s.name}</TableCell>
+											<TableCell>{s.progress || 0}%</TableCell>
+											<TableCell>
+												{s.startDate?.slice(0, 10)} → {s.endDate?.slice(0, 10)}
+											</TableCell>
+											<TableCell className="flex gap-2">
+												<Button size="sm" onClick={() => setEditStage(s)}>Edit</Button>
+												<Button size="sm" variant="destructive" onClick={() => handleDelete(s.id)}>Delete</Button>
+											</TableCell>
+										</TableRow>
+									))}
+								</React.Fragment>
+							);
+						})}
+					</TableBody>
+				</Table>
+			</div>
+
+			{/* ✅ Edit Modal */}
+			{editStage && (
+				<Dialog open={true} onOpenChange={() => setEditStage(null)}>
+					<DialogContent>
+						<DialogHeader><DialogTitle>Edit Stage</DialogTitle></DialogHeader>
+
+						<form onSubmit={handleEditSubmit} className="space-y-3">
+							<Input
+								value={editStage.name}
+								onChange={(e) => setEditStage({ ...editStage, name: e.target.value })}
+							/>
+
+							<Textarea
+								value={editStage.description}
+								onChange={(e) => setEditStage({ ...editStage, description: e.target.value })}
+							/>
+
+							<Input
+								type="date"
+								value={editStage.startDate?.slice(0, 10)}
+								onChange={(e) => setEditStage({ ...editStage, startDate: e.target.value })}
+							/>
+
+							<Input
+								type="date"
+								value={editStage.endDate?.slice(0, 10)}
+								onChange={(e) => setEditStage({ ...editStage, endDate: e.target.value })}
+							/>
+
+							<DialogFooter>
+								<Button type="submit">Update</Button>
+							</DialogFooter>
+						</form>
+					</DialogContent>
+				</Dialog>
+			)}
 		</div>
 	);
 }

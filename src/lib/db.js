@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 let dialectModule;
-
 try {
 	const mysql = await import("mysql2");
 	dialectModule = mysql.default;
@@ -13,9 +12,9 @@ try {
 	console.error("❌ mysql2 load error:", err);
 }
 
-const isURL = !!process.env.DATABASE_URL;
+const usingURL = !!process.env.DATABASE_URL;
 
-const sequelize = isURL
+const sequelize = usingURL
 	? new Sequelize(process.env.DATABASE_URL, {
 		dialect: "mysql",
 		dialectModule,
@@ -23,15 +22,15 @@ const sequelize = isURL
 		timezone: "+05:30",
 		dialectOptions: {
 			ssl: {
-				require: true,
-				rejectUnauthorized: false, // ✅ IMPORTANT FOR AIVEN
+				minVersion: "TLSv1.2",
+				rejectUnauthorized: false
 			},
 		},
 	})
 	: new Sequelize(
 		process.env.DB_NAME,
 		process.env.DB_USER,
-		process.env.DB_PASS,
+		process.env.DB_PASSWORD,
 		{
 			host: process.env.DB_HOST,
 			port: process.env.DB_PORT || 3306,
@@ -39,18 +38,19 @@ const sequelize = isURL
 			dialectModule,
 			logging: false,
 			timezone: "+05:30",
-			dialectOptions: {
-				ssl: {
-					require: true,
-					rejectUnauthorized: false, // ✅ IMPORTANT FOR LOCAL SSL HOSTS
-				},
-			},
+			dialectOptions: process.env.DB_SSL === "true"
+				? {
+					ssl: {
+						minVersion: "TLSv1.2",
+						rejectUnauthorized: false,
+					},
+				}
+				: {},
 		}
 	);
 
-sequelize
-	.authenticate()
-	.then(() => console.log("✅ Connected to Aiven MySQL"))
-	.catch((err) => console.error("❌ Database connection failed:", err));
+sequelize.authenticate()
+	.then(() => console.log("✅ DB Connected"))
+	.catch(err => console.error("❌ Database connection failed:", err));
 
 export default sequelize;

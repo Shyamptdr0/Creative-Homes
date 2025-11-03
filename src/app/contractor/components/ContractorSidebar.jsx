@@ -18,7 +18,9 @@ export default function ContractorSidebar() {
 
 	const menuItems = [
 		{title: "Home", icon: Home},
+		{title: "Project", icon: ClipboardList},
 		{title: "Stage", icon: ClipboardList},
+		{title: "Material", icon: ClipboardList},
 		{title: "Uploads", icon: Upload},
 		{title: "Messages", icon: MessageSquare},
 		{title: "Profile", icon: CircleUser }

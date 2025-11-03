@@ -28,7 +28,7 @@ export default function ProjectsPage() {
 	// ✅ Fetch Projects
 	async function fetchProjects() {
 		try {
-			const res = await fetch("/api/admin/projects");
+			const res = await fetch("/api/projects");
 			const data = await res.json();
 
 			const ordered = (data.projects || [])
@@ -47,7 +47,7 @@ export default function ProjectsPage() {
 
 	// ✅ Create Project
 	async function handleCreate(data) {
-		await fetch("/api/admin/projects", {
+		await fetch("/api/projects", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(data),
@@ -61,7 +61,7 @@ export default function ProjectsPage() {
 	async function handleUpdate(data) {
 		if (!editing) return;
 
-		await fetch(`/api/admin/projects/${editing.id}`, {
+		await fetch(`/api/projects/${editing.id}`, {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(data),
@@ -76,7 +76,7 @@ export default function ProjectsPage() {
 	async function handleDelete(id) {
 		if (!confirm("Delete this project?")) return;
 
-		await fetch(`/api/admin/projects/${id}`, { method: "DELETE" });
+		await fetch(`/api/projects/${id}`, { method: "DELETE" });
 		fetchProjects();
 	}
 

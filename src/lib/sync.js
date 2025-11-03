@@ -1,19 +1,29 @@
 import sequelize from "./db.js";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
+
+// ✅ Import models so Sequelize creates tables
 import User from "../models/User.js";
 import Client from "../models/Client.js";
 import Contractor from "../models/Contractor.js";
 import Project from "../models/Project.js";
 import Stage from "../models/Stage.js";
+import Material from "../models/Material.js";
 
 dotenv.config();
 
 (async () => {
 	try {
-		await sequelize.sync({ alter: true });
-		console.log("✅ Database synced successfully");
+		console.log("⏳ Connecting to DB...");
+		await sequelize.authenticate();
+		console.log("✅ DB Connected");
 
+		console.log("⏳ Syncing models...");
+		// ⚠️ DO NOT use force:true in production
+		 await sequelize.sync({ alter: false });
+		console.log("✅ Tables synced successfully");
+
+		// ✅ Create admin user
 		const adminEmail = process.env.ADMIN_EMAIL;
 		const adminPassword = process.env.ADMIN_PASSWORD;
 
@@ -32,9 +42,9 @@ dotenv.config();
 			console.log("✅ Admin already exists");
 		}
 
-		process.exit(0);
+		// process.exit(0);
 	} catch (error) {
-		console.error("❌ Sync error:", error);
+		console.error("❌ Init error:", error);
 		process.exit(1);
 	}
 })();
