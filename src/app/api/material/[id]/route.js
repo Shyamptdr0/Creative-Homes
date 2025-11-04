@@ -1,64 +1,60 @@
 import { NextResponse } from "next/server";
-import Material from "@/models/Material";
-import Project from "@/models/Project";
 import jwt from "jsonwebtoken";
-import "@/lib/sync";
+import Material from "@/models/Material";
+import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
+import "@/lib/db";
 
+// ✅ Get user from JWT
 function getUser(req) {
+	const auth = req.headers.get("authorization");
+	if (!auth) return null;
 	try {
-		const authHeader = req.headers.get("authorization");
-		if (!authHeader) return null;
-		const token = authHeader.split(" ")[1];
-		return jwt.verify(token, process.env.JWT_SECRET);
+		return jwt.verify(auth.split(" ")[1], process.env.JWT_SECRET);
 	} catch {
 		return null;
 	}
 }
 
-// ✅ GET SINGLE MATERIAL
-export async function GET(req, context) {
-	const params = await context.params; // ✅ FIX
-	const decoded = getUser(req);
-	if (!decoded) return NextResponse.json({ msg: "Invalid token" }, { status: 401 });
-
-	const material = await Material.findByPk(params.id);
-	return NextResponse.json({ success: true, data: material });
-}
-
-// ✅ UPDATE MATERIAL
-// ✅ UPDATE MATERIAL
+// ✅ PUT — Update Material
 export async function PUT(req, context) {
-	const params = await context.params;
-	const decoded = getUser(req);
-	if (!decoded) return NextResponse.json({ msg: "Invalid token" }, { status: 401 });
+	const params = await context.params; // ✅ FIXED PARAMS
+	const user = getUser(req);
+	if (!user) return NextResponse.json({ msg: "Unauthorized" }, { status: 401 });
 
-	const body = await req.json();
+	const fd = await req.formData();
+	const file = fd.get("billImage");
 
-	const material = await Material.findByPk(params.id, {
-		include: [{ model: Project, as: "project" }],
+	let update = {
+		name: fd.get("name"),
+		quantity: fd.get("quantity"),
+		unit: fd.get("unit"),
+		cost: fd.get("cost"),
+		status: fd.get("status"),
+		projectId: fd.get("projectId"),
+	};
+
+	// ✅ Upload new bill image if selected
+	if (file && file.name) {
+		const buffer = Buffer.from(await file.arrayBuffer());
+		update.billImage = await uploadToCloudinary(buffer);
+	}
+
+	await Material.update(update, {
+		where: { id: params.id, contractorId: user.id },
 	});
 
-	if (!material || material.project.contractorId !== decoded.id)
-		return NextResponse.json({ msg: "Not allowed" }, { status: 403 });
-
-	await Material.update(body, { where: { id: params.id } });
-	return NextResponse.json({ success: true });
+	return NextResponse.json({ success: true, message: "Material updated" });
 }
 
-// ✅ DELETE MATERIAL
+// ✅ DELETE — Delete Material
 export async function DELETE(req, context) {
-	const params = await context.params;
-	const decoded = getUser(req);
-	if (!decoded) return NextResponse.json({ msg: "Invalid token" }, { status: 401 });
+	const params = await context.params; // ✅ FIXED PARAMS
+	const user = getUser(req);
+	if (!user) return NextResponse.json({ msg: "Unauthorized" }, { status: 401 });
 
-	const material = await Material.findByPk(params.id, {
-		include: [{ model: Project, as: "project" }],
+	await Material.destroy({
+		where: { id: params.id, contractorId: user.id },
 	});
 
-	if (!material || material.project.contractorId !== decoded.id)
-		return NextResponse.json({ msg: "Not allowed" }, { status: 403 });
-
-	await Material.destroy({ where: { id: params.id } });
-	return NextResponse.json({ success: true });
+	return NextResponse.json({ success: true, message: "Material deleted" });
 }
-

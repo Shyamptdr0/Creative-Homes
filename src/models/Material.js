@@ -5,20 +5,19 @@ import Contractor from "./Contractor.js";
 
 const Material = sequelize.define("Material", {
 	id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-
-	name: { type: DataTypes.STRING, allowNull: false },
-	quantity: { type: DataTypes.FLOAT, allowNull: false },
+	name: DataTypes.STRING,
+	quantity: DataTypes.FLOAT,
 	unit: { type: DataTypes.STRING, defaultValue: "pcs" },
-	cost: { type: DataTypes.FLOAT, allowNull: false },
+	cost: DataTypes.FLOAT,
 	status: {
 		type: DataTypes.ENUM("pending", "delivered", "used"),
 		defaultValue: "pending",
 	},
-	projectId: { type: DataTypes.INTEGER },
-	contractorId: { type: DataTypes.INTEGER }
+	billImage: DataTypes.STRING,
+	projectId: DataTypes.INTEGER,
+	contractorId: DataTypes.INTEGER,
 });
 
-// ✅ Associations with alias
 Material.belongsTo(Project, { foreignKey: "projectId", as: "project" });
 Project.hasMany(Material, { foreignKey: "projectId", as: "materials" });
 

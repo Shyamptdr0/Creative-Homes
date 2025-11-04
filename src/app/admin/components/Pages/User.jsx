@@ -23,6 +23,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react"; // ✅ added loader icon
 
 export default function UserPage() {
 	const [activeTab, setActiveTab] = useState("client");
@@ -33,14 +34,27 @@ export default function UserPage() {
 	const [openAddDialog, setOpenAddDialog] = useState(false);
 	const [openEditDialog, setOpenEditDialog] = useState(false);
 
-	// 👇 NEW delete dialog states
+	// Delete dialog states
 	const [deleteUser, setDeleteUser] = useState(null);
 	const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
 
+	// ✅ loading state
+	const [loading, setLoading] = useState(true);
+
 	const fetchUsers = async () => {
-		const res = await fetch("/api/admin/users");
-		const data = await res.json();
-		if (data.success) setUsers(data.users);
+		try {
+			setLoading(true); // ✅ start loading
+
+			const res = await fetch("/api/admin/users");
+			const data = await res.json();
+			if (data.success) setUsers(data.users);
+
+		} catch (err) {
+			console.log("Error fetching users:", err);
+			toast.error("Failed to load users");
+		} finally {
+			setLoading(false); // ✅ stop loading
+		}
 	};
 
 	useEffect(() => {
@@ -64,39 +78,31 @@ export default function UserPage() {
 		} else toast.error("Failed to create user");
 	};
 
-	// 👇 OPEN delete confirm popup
 	const confirmDelete = (u) => {
 		setDeleteUser(u);
 		setOpenDeleteDialog(true);
 	};
 
-	// 👇 delete user after confirmation
-	// 👇 Safe delete handler
 	const handleDelete = async () => {
 		if (!deleteUser?.id) {
-			toast.error("User not selected");
-			return;
+			return toast.error("User not selected");
 		}
 
 		const res = await fetch(`/api/admin/users/${deleteUser.id}?role=${deleteUser.role}`, {
-			method: "DELETE"
+			method: "DELETE",
 		});
-
 		const data = await res.json();
 
 		if (!res.ok) {
 			toast.error(data.msg || "Failed to delete user");
-			setOpenDeleteDialog(false);
-			setDeleteUser(null);
-			return;
+		} else {
+			toast.success("User deleted");
 		}
 
-		toast.success("User deleted");
 		setOpenDeleteDialog(false);
 		setDeleteUser(null);
 		fetchUsers();
 	};
-
 
 	const handleUpdate = async () => {
 		const res = await fetch(`/api/admin/users/${editUser.id}?role=${editUser.role}`, {
@@ -114,6 +120,15 @@ export default function UserPage() {
 	};
 
 	const filteredUsers = users.filter((u) => u.role === activeTab);
+
+	// ✅ LOADING SCREEN
+	// if (loading) {
+	// 	return (
+	// 		<div className="flex justify-center items-center h-64">
+	// 			<Loader2 className="animate-spin w-10 h-10" />
+	// 		</div>
+	// 	);
+	// }
 
 	return (
 		<div className="container max-auto grid grid-cols-1 gap-8 py-8">
@@ -139,36 +154,19 @@ export default function UserPage() {
 								<form onSubmit={handleSubmit} className="space-y-4">
 									<div>
 										<Label>Name</Label>
-										<Input
-											value={formData.name}
-											onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-											required
-										/>
+										<Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
 									</div>
 									<div>
 										<Label>Email</Label>
-										<Input
-											type="email"
-											value={formData.email}
-											onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-											required
-										/>
+										<Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
 									</div>
 									<div>
 										<Label>Phone</Label>
-										<Input
-											value={formData.phone}
-											onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-											required
-										/>
+										<Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} required />
 									</div>
 									<div>
 										<Label>Address</Label>
-										<Input
-											value={formData.address}
-											onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-											required
-										/>
+										<Input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} required />
 									</div>
 									<Button className="w-full" type="submit">Save</Button>
 								</form>
@@ -194,7 +192,16 @@ export default function UserPage() {
 								</TableHeader>
 
 								<TableBody>
-									{filteredUsers.length > 0 ? (
+									{loading ? (
+										<TableRow>
+											<TableCell colSpan={7} className="text-center py-6">
+												<div className="flex justify-center items-center gap-2">
+													<Loader2 className="animate-spin w-6 h-6" />
+													<span>Loading users...</span>
+												</div>
+											</TableCell>
+										</TableRow>
+									) : filteredUsers.length > 0 ? (
 										filteredUsers.map((u) => (
 											<TableRow key={u.id} className="text-[18px]">
 												<TableCell>{u.name}</TableCell>
@@ -219,19 +226,6 @@ export default function UserPage() {
 																Edit
 															</Button>
 														</DialogTrigger>
-														<DialogContent>
-															<DialogHeader>
-																<DialogTitle>Edit User</DialogTitle>
-															</DialogHeader>
-
-															<div className="space-y-3">
-																<Input value={editUser?.name || ""} onChange={(e) => setEditUser({ ...editUser, name: e.target.value })} />
-																<Input value={editUser?.email || ""} onChange={(e) => setEditUser({ ...editUser, email: e.target.value })} />
-																<Input value={editUser?.phone || ""} onChange={(e) => setEditUser({ ...editUser, phone: e.target.value })} />
-																<Input value={editUser?.address || ""} onChange={(e) => setEditUser({ ...editUser, address: e.target.value })} />
-																<Button className="w-full" onClick={handleUpdate}>Save</Button>
-															</div>
-														</DialogContent>
 													</Dialog>
 
 													<Button variant="destructive" size="sm" onClick={() => confirmDelete(u)}>
@@ -242,12 +236,13 @@ export default function UserPage() {
 										))
 									) : (
 										<TableRow>
-											<TableCell colSpan="7" className="text-center text-gray-500 py-4">
+											<TableCell colSpan={7} className="text-center text-gray-500 py-4">
 												No users found
 											</TableCell>
 										</TableRow>
 									)}
 								</TableBody>
+
 
 								<TableFooter>
 									<TableRow>
@@ -261,7 +256,7 @@ export default function UserPage() {
 				</Tabs>
 			</div>
 
-			{/* ✅ Delete Confirmation Dialog */}
+			{/* Delete Dialog */}
 			<Dialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
 				<DialogContent>
 					<DialogHeader>

@@ -17,10 +17,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { Loader2 } from "lucide-react"; // ✅
 import ProjectForm from "@/components/ProjectForm";
 
 export default function ProjectsPage() {
 	const [projects, setProjects] = useState([]);
+	const [loading, setLoading] = useState(true); // ✅ table loading state
 	const [editing, setEditing] = useState(null);
 	const [editOpen, setEditOpen] = useState(false);
 	const [createOpen, setCreateOpen] = useState(false);
@@ -28,6 +30,7 @@ export default function ProjectsPage() {
 	// ✅ Fetch Projects
 	async function fetchProjects() {
 		try {
+			setLoading(true); // ✅ start loader
 			const res = await fetch("/api/projects");
 			const data = await res.json();
 
@@ -38,6 +41,8 @@ export default function ProjectsPage() {
 			setProjects(ordered);
 		} catch (e) {
 			console.log(e);
+		} finally {
+			setLoading(false); // ✅ stop loader
 		}
 	}
 
@@ -131,46 +136,63 @@ export default function ProjectsPage() {
 					</TableHeader>
 
 					<TableBody>
-						{projects.map((p) => (
-							<TableRow key={p.id}>
-								<TableCell className="text-center font-bold">{p.serial}</TableCell>
-								<TableCell>{p.title}</TableCell>
-								<TableCell>{p.client?.clientId} — {p.client?.name}</TableCell>
-								<TableCell>{p.contractor?.contractorId} — {p.contractor?.name}</TableCell>
-								<TableCell className="capitalize">{p.status}</TableCell>
-
-								<TableCell>{p.startDate ? new Date(p.startDate).toLocaleDateString() : "-"}</TableCell>
-								<TableCell>{p.endDate ? new Date(p.endDate).toLocaleDateString() : "-"}</TableCell>
-
-								<TableCell>₹{p.totalCost}</TableCell>
-
-								<TableCell className="flex gap-2 justify-center">
-									<Button
-										size="sm"
-										variant="outline"
-										onClick={() => {
-											setEditing(p);
-											setEditOpen(true);
-										}}
-									>
-										Edit
-									</Button>
-
-									<Button
-										size="sm"
-										variant="destructive"
-										onClick={() => handleDelete(p.id)}
-									>
-										Delete
-									</Button>
+						{/* ✅ Show Loader */}
+						{loading ? (
+							<TableRow>
+								<TableCell colSpan={9} className="text-center py-8">
+									<div className="flex items-center justify-center gap-2">
+										<Loader2 className="animate-spin w-6 h-6" />
+										<span>Loading projects...</span>
+									</div>
 								</TableCell>
 							</TableRow>
-						))}
+						) : projects.length === 0 ? (
+							/* ✅ Show Empty */
+							<TableRow>
+								<TableCell colSpan={9} className="text-center py-6 text-gray-500">
+									No projects found
+								</TableCell>
+							</TableRow>
+						) : (
+							projects.map((p) => (
+								<TableRow key={p.id}>
+									<TableCell className="text-center font-bold">{p.serial}</TableCell>
+									<TableCell>{p.title}</TableCell>
+									<TableCell>{p.client?.clientId} — {p.client?.name}</TableCell>
+									<TableCell>{p.contractor?.contractorId} — {p.contractor?.name}</TableCell>
+									<TableCell className="capitalize">{p.status}</TableCell>
+									<TableCell>{p.startDate ? new Date(p.startDate).toLocaleDateString() : "-"}</TableCell>
+									<TableCell>{p.endDate ? new Date(p.endDate).toLocaleDateString() : "-"}</TableCell>
+									<TableCell>₹{p.totalCost}</TableCell>
+
+									<TableCell className="flex gap-2 justify-center">
+										<Button
+											size="sm"
+											variant="outline"
+											onClick={() => {
+												setEditing(p);
+												setEditOpen(true);
+											}}
+										>
+											Edit
+										</Button>
+
+										<Button
+											size="sm"
+											variant="destructive"
+											onClick={() => handleDelete(p.id)}
+										>
+											Delete
+										</Button>
+									</TableCell>
+								</TableRow>
+							))
+						)}
 					</TableBody>
 				</Table>
 			</div>
 
-			{/* ✅ Edit Dialog */}
+			{/* Edit Dialog */}
 			<Dialog
 				open={editOpen}
 				onOpenChange={(open) => {

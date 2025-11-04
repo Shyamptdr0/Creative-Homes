@@ -11,43 +11,44 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
 
 export default function ContractorStages() {
 	const [stages, setStages] = useState([]);
 	const [editStage, setEditStage] = useState(null);
 	const [updatedProgress, setUpdatedProgress] = useState("");
 	const [loading, setLoading] = useState(false);
+	const [fetchLoading, setFetchLoading] = useState(true);
 
+	// ✅ Fetch all stages
 	const fetchStages = async () => {
 		try {
+			setFetchLoading(true);
 			const token = sessionStorage.getItem("token");
 
-
-			const res = await fetch("/api/contractors/stages",
-			{
-				headers: {
-					Authorization: `Bearer ${token}`,
-				},
+			const res = await fetch("/api/contractors/stages", {
+				headers: { Authorization: `Bearer ${token}` },
 			});
 
 			const data = await res.json();
 			if (data.success) setStages(data.stages);
 		} catch {
 			console.log("Error fetching stages");
+		} finally {
+			setFetchLoading(false);
 		}
 	};
-
 
 	useEffect(() => {
 		fetchStages();
 	}, []);
 
+	// ✅ Update progress function
 	const handleProgressUpdate = async (e) => {
 		e.preventDefault();
 		setLoading(true);
 
 		const token = sessionStorage.getItem("token");
-
 
 		const res = await fetch(`/api/stages/${editStage?.id}`, {
 			method: "PUT",
@@ -68,7 +69,6 @@ export default function ContractorStages() {
 		setLoading(false);
 	};
 
-
 	// ✅ Progress color function
 	const getProgressColor = (value) => {
 		if (value <= 30) return "bg-red-500 text-white";
@@ -77,7 +77,7 @@ export default function ContractorStages() {
 		return "bg-green-600 text-white";
 	};
 
-	// ✅ Group stages safely
+	// ✅ Group stages by project
 	const projects = stages.reduce((acc, stage) => {
 		const pid = stage.project?.id ?? "no-project";
 		if (!acc[pid]) acc[pid] = { project: stage.project, stages: [] };
@@ -86,84 +86,94 @@ export default function ContractorStages() {
 	}, {});
 
 	return (
-		<div className="p-6 space-y-6">
-			<h1 className="text-xl font-bold">Contractor – Stage Progress</h1>
+		<div className="container mx-auto grid grid-cols-1 gap-8 py-8">
+			<h1 className="text-2xl font-bold">Stage Progress</h1>
 
-			{Object.values(projects).length === 0 && (
+			{/* ✅ Loading Skeleton */}
+			{fetchLoading && (
+				<div className="space-y-4 animate-pulse">
+					<div className="h-6 bg-gray-200 rounded w-48"></div>
+					<div className="h-40 bg-gray-200 rounded"></div>
+					<div className="h-40 bg-gray-200 rounded"></div>
+				</div>
+			)}
+
+			{/* ✅ No stages */}
+			{!fetchLoading && Object.values(projects).length === 0 && (
 				<p className="text-center text-sm text-gray-500">No stages found</p>
 			)}
 
-			{Object.values(projects).map(({ project, stages }, i) => {
-				if (!project) return null;
+			{/* ✅ Projects */}
+			{!fetchLoading &&
+				Object.values(projects).map(({ project, stages }, i) => {
+					if (!project) return null;
 
-				return (
-					<div key={project.id || i} className="border rounded-lg bg-white shadow p-4 mb-8">
-						<h2 className="text-lg font-semibold mb-3">🏗️ Project: {project.title}</h2>
+					return (
+						<div key={project.id || i} className="border rounded-lg bg-white shadow p-4 mb-8">
+							<h2 className="text-lg font-semibold mb-3">
+								🏗️ {project.title}
+							</h2>
 
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Stage</TableHead>
-									<TableHead>Timeline</TableHead>
-									<TableHead>Description</TableHead>
-									<TableHead>Progress</TableHead>
-									<TableHead className="text-right">Action</TableHead>
-								</TableRow>
-							</TableHeader>
-
-							<TableBody>
-								{stages.map((stage) => (
-									<TableRow key={stage.id}>
-										<TableCell>{stage.name}</TableCell>
-
-										<TableCell className="text-sm">
-											{stage.startDate?.slice(0, 10) || "--"} → {stage.endDate?.slice(0, 10) || "--"}
-										</TableCell>
-
-										<TableCell>
-											<Textarea value={stage.description} disabled rows={2} />
-										</TableCell>
-
-										<TableCell className="min-w-[150px]">
-											<div className="flex items-center justify-between mb-1">
-												<span className="text-sm font-medium">{stage.progress}%</span>
-												<Badge
-													className={`text-xs px-2 py-1 rounded-full ${getProgressColor(stage.progress ?? 0)}`}
-												>
-													{stage.progress <= 30 ? "Starting" : stage.progress <= 60 ? "In Progress" : stage.progress <= 90 ? "Near Done" : "Completed"}
-												</Badge>
-											</div>
-
-											{/* ✅ Modern Progress Line Bar */}
-											<div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
-												<div
-													className={`h-3 rounded-full transition-all duration-700 ease-out ${getProgressColor(stage.progress ?? 0)}`}
-													style={{ width: `${stage.progress}%` }}
-												></div>
-											</div>
-										</TableCell>
-
-
-										<TableCell className="text-right">
-											<Button
-												size="sm"
-												onClick={() => {
-													setEditStage(stage);
-													setUpdatedProgress(stage.progress ?? 0);
-												}}
-											>
-												Update
-											</Button>
-										</TableCell>
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead>Stage</TableHead>
+										<TableHead>Timeline</TableHead>
+										<TableHead>Description</TableHead>
+										<TableHead>Progress</TableHead>
+										<TableHead className="text-right">Action</TableHead>
 									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					</div>
-				);
-			})}
+								</TableHeader>
 
-			{/* ✅ Update Progress Dialog */}
+								<TableBody>
+									{stages.map((stage) => (
+										<TableRow key={stage.id}>
+											<TableCell className="font-medium">{stage.name}</TableCell>
+
+											<TableCell className="text-sm">
+												{stage.startDate?.slice(0, 10) || "--"} → {stage.endDate?.slice(0, 10) || "--"}
+											</TableCell>
+
+											<TableCell className="max-w-[250px]">
+												<Textarea value={stage.description} disabled rows={2} />
+											</TableCell>
+
+											<TableCell className="min-w-[150px]">
+												<div className="flex items-center justify-between mb-1">
+													<span className="text-sm font-medium">{stage.progress}%</span>
+													<Badge className={`text-xs px-2 py-1 rounded-full ${getProgressColor(stage.progress ?? 0)}`}>
+														{stage.progress <= 30 ? "Starting" : stage.progress <= 60 ? "In Progress" : stage.progress <= 90 ? "Near Done" : "Completed"}
+													</Badge>
+												</div>
+
+												<div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
+													<div
+														className={`h-3 rounded-full transition-all duration-700 ease-out ${getProgressColor(stage.progress ?? 0)}`}
+														style={{ width: `${stage.progress}%` }}
+													></div>
+												</div>
+											</TableCell>
+
+											<TableCell className="text-right">
+												<Button
+													size="sm"
+													onClick={() => {
+														setEditStage(stage);
+														setUpdatedProgress(stage.progress ?? 0);
+													}}
+													disabled={loading}
+												>
+													Update
+												</Button>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
+					);
+				})}
+
 			{/* ✅ Update Progress Dialog */}
 			{editStage && (
 				<Dialog open={true} onOpenChange={() => setEditStage(null)}>
@@ -175,53 +185,29 @@ export default function ContractorStages() {
 						<form onSubmit={handleProgressUpdate} className="space-y-4">
 							<p className="font-medium">{editStage.name}</p>
 
-							{/* ✅ Slider Input */}
-							<div className="space-y-2">
-								<label className="text-sm font-medium">Adjust Progress</label>
-								<input
-									type="range"
-									min="0"
-									max="100"
-									value={updatedProgress}
-									onChange={(e) => setUpdatedProgress(Number(e.target.value))}
-									className="w-full cursor-pointer accent-blue-600"
-								/>
-								<div className="flex justify-between text-sm">
-									<span>0%</span>
-									<span>{updatedProgress}%</span>
-									<span>100%</span>
-								</div>
+							<label className="text-sm font-medium">Adjust Progress</label>
+							<input
+								type="range"
+								min="0"
+								max="100"
+								value={updatedProgress}
+								onChange={(e) => setUpdatedProgress(Number(e.target.value))}
+								className="w-full cursor-pointer accent-blue-600"
+							/>
+
+							<div className="flex justify-between text-sm">
+								<span>0%</span>
+								<span>{updatedProgress}%</span>
+								<span>100%</span>
 							</div>
 
-							{/* ✅ Progress Bar Preview */}
-							<div className="space-y-2">
-								<p className="text-sm text-gray-600">Visual Preview:</p>
-								<div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
-									<div
-										className={`h-3 rounded-full transition-all duration-700 ease-out ${getProgressColor(updatedProgress)}`}
-										style={{ width: `${updatedProgress}%` }}
-									></div>
-								</div>
+							<div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
+								<div
+									className={`h-3 rounded-full transition-all duration-700 ease-out ${getProgressColor(updatedProgress)}`}
+									style={{ width: `${updatedProgress}%` }}
+								></div>
 							</div>
 
-							{/* ✅ Scrollable Selector (Keep as optional manual pick) */}
-							{/*<div className="max-h-40 overflow-y-scroll border rounded-md p-2 space-y-1">*/}
-							{/*	{Array.from({ length: 101 }, (_, i) => (*/}
-							{/*		<div*/}
-							{/*			key={i}*/}
-							{/*			onClick={() => setUpdatedProgress(i)}*/}
-							{/*			className={`cursor-pointer px-2 py-1 rounded-md text-sm ${*/}
-							{/*				i === Number(updatedProgress)*/}
-							{/*					? "bg-blue-600 text-white"*/}
-							{/*					: "hover:bg-gray-100"*/}
-							{/*			}`}*/}
-							{/*		>*/}
-							{/*			{i}%*/}
-							{/*		</div>*/}
-							{/*	))}*/}
-							{/*</div>*/}
-
-							{/* ✅ Badge Preview */}
 							<div className="flex justify-between items-center mt-2">
 								<p className="text-sm text-gray-600">Selected Progress:</p>
 								<Badge className={getProgressColor(updatedProgress)}>
@@ -231,15 +217,20 @@ export default function ContractorStages() {
 
 							<DialogFooter>
 								<Button type="submit" disabled={loading}>
-									{loading ? "Saving..." : "Save"}
+									{loading ? (
+										<div className="flex items-center gap-2">
+											<Loader2 className="h-4 w-4 animate-spin" />
+											Saving...
+										</div>
+									) : (
+										"Save"
+									)}
 								</Button>
 							</DialogFooter>
 						</form>
 					</DialogContent>
 				</Dialog>
 			)}
-
-
 		</div>
 	);
 }

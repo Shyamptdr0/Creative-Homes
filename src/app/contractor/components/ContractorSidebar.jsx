@@ -1,7 +1,16 @@
 "use client";
 
 import AllPages from "@/app/contractor/components/AllPages";
-import {Home, ClipboardList, Upload, MessageSquare, PersonStanding, CircleUser} from "lucide-react";
+import {
+	Home,
+	ClipboardList,
+	Upload,
+	MessageSquare,
+	PersonStanding,
+	CircleUser,
+	HousePlus,
+	ChartBarIncreasing, BrickWall
+} from "lucide-react";
 import SidebarPage from "@/components/SidebarPage";
 import {useRouter} from "next/navigation";
 import {useEffect} from "react";
@@ -18,9 +27,9 @@ export default function ContractorSidebar() {
 
 	const menuItems = [
 		{title: "Home", icon: Home},
-		{title: "Project", icon: ClipboardList},
-		{title: "Stage", icon: ClipboardList},
-		{title: "Material", icon: ClipboardList},
+		{title: "Project", icon: HousePlus},
+		{title: "Stage", icon: ChartBarIncreasing},
+		{title: "Material", icon: BrickWall},
 		{title: "Uploads", icon: Upload},
 		{title: "Messages", icon: MessageSquare},
 		{title: "Profile", icon: CircleUser }
