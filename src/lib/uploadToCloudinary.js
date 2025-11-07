@@ -1,10 +1,22 @@
 import cloudinary from "./cloudinary";
 
-export const uploadToCloudinary = (buffer, folder = "materials") => {
+
+export const uploadToCloudinary = async (buffer, folder = "drawings") => {
 	return new Promise((resolve, reject) => {
-		cloudinary.uploader.upload_stream({ folder }, (err, result) => {
-			if (err) reject(err);
-			else resolve(result.secure_url);
-		}).end(buffer);
+		const uploadStream = cloudinary.uploader.upload_stream(
+			{
+				folder,
+				resource_type: "auto", // ✅ auto handles images & videos only here
+			},
+			(err, result) => {
+				if (err) {
+					console.error("❌ Cloudinary Upload Error", err);
+					return reject(err);
+				}
+				resolve(result.secure_url);
+			}
+		);
+
+		uploadStream.end(buffer);
 	});
 };

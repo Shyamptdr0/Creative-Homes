@@ -25,7 +25,7 @@ export default function AdminLogin() {
 		if (res.ok && data.token) {
 			sessionStorage.setItem("token", data.token);
 
-			toast.success("Login Successful ✅ Redirecting...");
+			toast.success("Login Successful...");
 
 			setTimeout(() => router.push("/admin/dashboard"), 1200);
 		} else {
@@ -35,7 +35,7 @@ export default function AdminLogin() {
 
 	return (
 		<div className="flex items-center justify-center h-screen">
-			<div className="p-6 shadow rounded bg-white w-96">
+			<div className="p-6  border-t-6 border-black shadow-2xl rounded-md bg-white w-96">
 				<h1 className="text-2xl font-bold mb-4">Admin Login</h1>
 
 				<input
@@ -51,7 +51,7 @@ export default function AdminLogin() {
 				/>
 
 				<button
-					className="bg-black text-white p-2 w-full rounded disabled:opacity-50"
+					className="bg-black text-white p-2 w-full rounded disabled:opacity-50 cursor-pointer"
 					onClick={handleLogin}
 					disabled={loading}
 				>

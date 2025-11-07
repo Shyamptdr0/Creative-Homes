@@ -9,7 +9,7 @@ import {
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
+	DialogTrigger
 } from "@/components/ui/dialog";
 import {
 	Table,
@@ -17,9 +17,20 @@ import {
 	TableCell,
 	TableHead,
 	TableHeader,
-	TableRow,
+	TableRow
 } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function MaterialsPage() {
 	const [materials, setMaterials] = useState([]);
@@ -32,6 +43,7 @@ export default function MaterialsPage() {
 	const [billPreview, setBillPreview] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
+	const [deleteId, setDeleteId] = useState(null);
 
 	const [form, setForm] = useState({
 		name: "",
@@ -76,9 +88,9 @@ export default function MaterialsPage() {
 
 	const saveMaterial = async () => {
 		setSaving(true);
-		const formData = new FormData();
-		Object.keys(form).forEach((k) => formData.append(k, form[k]));
-		if (billFile) formData.append("billImage", billFile);
+		const fd = new FormData();
+		Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+		if (billFile) fd.append("billImage", billFile);
 
 		const url = editId ? `/api/material/${editId}` : "/api/material";
 		const method = editId ? "PUT" : "POST";
@@ -86,7 +98,7 @@ export default function MaterialsPage() {
 		const res = await fetch(url, {
 			method,
 			headers: { Authorization: `Bearer ${token}` },
-			body: formData,
+			body: fd,
 		});
 
 		const data = await res.json();
@@ -99,11 +111,12 @@ export default function MaterialsPage() {
 		}
 	};
 
-	const deleteMaterial = async (id) => {
-		await fetch(`/api/material/${id}`, {
+	const confirmDelete = async () => {
+		await fetch(`/api/material/${deleteId}`, {
 			method: "DELETE",
 			headers: { Authorization: `Bearer ${token}` },
 		});
+		setDeleteId(null);
 		fetchMaterials();
 	};
 
@@ -122,7 +135,7 @@ export default function MaterialsPage() {
 	};
 
 	return (
-		<div className="container mx-auto grid grid-cols-1 py-8 space-y-6">
+		<div className="container mx-auto py-8 space-y-6">
 			<div className="flex justify-between items-center">
 				<h1 className="text-2xl font-bold">Materials</h1>
 
@@ -131,67 +144,60 @@ export default function MaterialsPage() {
 						<Button>Add Material</Button>
 					</DialogTrigger>
 
-					<DialogContent className="max-h-[90vh] overflow-hidden">
+					<DialogContent className="max-w-lg">
 						<DialogHeader>
 							<DialogTitle>{editId ? "Edit Material" : "Add Material"}</DialogTitle>
 						</DialogHeader>
 
-						<div className="overflow-y-auto max-h-[70vh] pr-2 space-y-3">
-							<div className="grid gap-3">
-								<Label>Name</Label>
-								<Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+						<div className="max-h-[400px] overflow-y-auto space-y-3 pr-2">
+							<Label>Name</Label>
+							<Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
 
-								<Label>Quantity</Label>
-								<Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+							<Label>Quantity</Label>
+							<Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
 
-								<Label>Unit</Label>
-								<Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+							<Label>Unit</Label>
+							<Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
 
-								<Label>Cost</Label>
-								<Input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
+							<Label>Cost</Label>
+							<Input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
 
-								<Label>Project</Label>
-								<select className="border p-2 rounded" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
-									<option>Select Project</option>
-									{projects.map((p) => (
-										<option key={p.id} value={p.id}>{p.title}</option>
-									))}
-								</select>
+							<Label>Project</Label>
+							<select className="border p-2 rounded" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
+								<option>Select</option>
+								{projects.map((p) => (
+									<option key={p.id} value={p.id}>{p.title}</option>
+								))}
+							</select>
 
-								<Label>Status</Label>
-								<select className="border p-2 rounded" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-									<option value="pending">Pending</option>
-									<option value="delivered">Delivered</option>
-									<option value="used">Used</option>
-								</select>
+							<Label>Status</Label>
+							<select className="border p-2 rounded" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+								<option value="pending">Pending</option>
+								<option value="delivered">Delivered</option>
+								<option value="used">Used</option>
+							</select>
 
-								<Label>Bill Image</Label>
-								<input
-									type="file"
-									accept="image/*"
-									onChange={(e) => {
-										setBillFile(e.target.files[0]);
-										setBillPreview(URL.createObjectURL(e.target.files[0]));
-									}}
-								/>
-
-								{billPreview && <img src={billPreview} className="w-32 h-32 object-cover border rounded" />}
-							</div>
+							<Label>Bill Image (only image)</Label>
+							<input
+								type="file"
+								accept="image/*"
+								onChange={(e) => {
+									setBillFile(e.target.files[0]);
+									setBillPreview(URL.createObjectURL(e.target.files[0]));
+								}}
+							/>
+							{billPreview && <img src={billPreview} className="w-32 h-32 object-cover border rounded" />}
 						</div>
 
 						<Button onClick={saveMaterial} disabled={saving} className="w-full mt-3">
-							{saving ? <Loader2 className="animate-spin w-5 h-5" /> : editId ? "Update" : "Save"}
+							{saving ? <Loader2 className="animate-spin" /> : editId ? "Update" : "Save"}
 						</Button>
 					</DialogContent>
 				</Dialog>
 			</div>
 
 			{loading ? (
-				<div className="space-y-2">
-					{Array.from({ length: 5 }).map((_, i) => (
-						<div key={i} className="h-12 rounded bg-gray-200 animate-pulse"></div>
-					))}
-				</div>
+				<div>Loading...</div>
 			) : (
 				<Table>
 					<TableHeader>
@@ -219,8 +225,7 @@ export default function MaterialsPage() {
 
 								<TableCell>
 									{m.billImage ? (
-										<Button size="sm" variant="secondary"
-										        onClick={() => { setSelectedImage(m.billImage); setImageDialog(true); }}>
+										<Button size="sm" variant="secondary" onClick={() => { setSelectedImage(m.billImage); setImageDialog(true); }}>
 											View
 										</Button>
 									) : "-"}
@@ -228,7 +233,33 @@ export default function MaterialsPage() {
 
 								<TableCell className="flex gap-2">
 									<Button size="sm" onClick={() => openEdit(m)}>Edit</Button>
-									<Button size="sm" variant="destructive" onClick={() => deleteMaterial(m.id)}>Delete</Button>
+
+									<AlertDialog>
+										<AlertDialogTrigger asChild>
+											<Button
+												size="sm"
+												variant="destructive"
+												onClick={() => setDeleteId(m.id)}
+											>
+												Delete
+											</Button>
+										</AlertDialogTrigger>
+
+										<AlertDialogContent>
+											<AlertDialogHeader>
+												<AlertDialogTitle>Delete Material?</AlertDialogTitle>
+												<AlertDialogDescription>
+													This action cannot be undone.
+												</AlertDialogDescription>
+											</AlertDialogHeader>
+											<AlertDialogFooter>
+												<AlertDialogCancel>Cancel</AlertDialogCancel>
+												<AlertDialogAction onClick={confirmDelete}>
+													Delete
+												</AlertDialogAction>
+											</AlertDialogFooter>
+										</AlertDialogContent>
+									</AlertDialog>
 								</TableCell>
 							</TableRow>
 						))}
@@ -238,9 +269,7 @@ export default function MaterialsPage() {
 
 			<Dialog open={imageDialog} onOpenChange={setImageDialog}>
 				<DialogContent className="max-w-xl">
-					{selectedImage && (
-						<img src={selectedImage} className="w-full h-auto rounded border" alt="Bill" />
-					)}
+					{selectedImage && <img src={selectedImage} className="w-full rounded border" />}
 				</DialogContent>
 			</Dialog>
 		</div>

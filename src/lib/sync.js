@@ -9,6 +9,7 @@ import Contractor from "../models/Contractor.js";
 import Project from "../models/Project.js";
 import Stage from "../models/Stage.js";
 import Material from "../models/Material.js";
+import Drawing from "../models/Drawing.js"
 
 dotenv.config();
 

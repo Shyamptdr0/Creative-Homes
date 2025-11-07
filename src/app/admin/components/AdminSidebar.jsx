@@ -13,8 +13,9 @@ import {
 	BrickWall,
 	Stars,
 	ChartBarIncreasing,
-	IndianRupee
+	IndianRupee, PencilRuler
 } from "lucide-react";
+import {DEFAULT_RUNTIME_WEBPACK} from "next/constants";
 
 export default function AdminDashboard() {
 	const router = useRouter();
@@ -28,6 +29,7 @@ export default function AdminDashboard() {
 		{ title: "Home", icon: Home },
 		{ title: "Users", icon: Users },
 		{ title: "Project", icon: HousePlus },
+		{ title: "Drawing", icon: PencilRuler},
 		{ title: "Stage", icon: ChartBarIncreasing },
 		{ title: "Material", icon: BrickWall},
 		{ title: "Payments" ,icon: IndianRupee},

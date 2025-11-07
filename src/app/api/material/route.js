@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import Material from "@/models/Material";
 import Project from "@/models/Project";
 import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
+
 import "@/lib/db";
 
 function getUser(req) {
@@ -36,12 +37,12 @@ export async function POST(req) {
 
 	const fd = await req.formData();
 	const file = fd.get("billImage");
+	let billImage = null;
 
-	let billImageUrl = null;
-
-	if (file && file.name) {
+	// ✅ Upload only image
+	if (file && file.type.startsWith("image/")) {
 		const buffer = Buffer.from(await file.arrayBuffer());
-		billImageUrl = await uploadToCloudinary(buffer);
+		billImage = await uploadToCloudinary(buffer);
 	}
 
 	const material = await Material.create({
@@ -52,7 +53,7 @@ export async function POST(req) {
 		status: fd.get("status"),
 		projectId: fd.get("projectId"),
 		contractorId: user.id,
-		billImage: billImageUrl,
+		billImage,
 	});
 
 	return NextResponse.json({ success: true, data: material });

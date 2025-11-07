@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import Material from "@/models/Material";
 import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
+import { deleteFromCloudinary } from "@/lib/deleteFromCloudinary";
 import "@/lib/db";
 
-// ✅ Get user from JWT
 function getUser(req) {
 	const auth = req.headers.get("authorization");
 	if (!auth) return null;
@@ -15,14 +15,21 @@ function getUser(req) {
 	}
 }
 
-// ✅ PUT — Update Material
-export async function PUT(req, context) {
-	const params = await context.params; // ✅ FIXED PARAMS
+// ✅ UPDATE MATERIAL
+export async function PUT(req, ctx) {
+	const params = await ctx.params; // ✅ add this line
+
 	const user = getUser(req);
 	if (!user) return NextResponse.json({ msg: "Unauthorized" }, { status: 401 });
 
 	const fd = await req.formData();
 	const file = fd.get("billImage");
+
+	const material = await Material.findOne({
+		where: { id: params.id, contractorId: user.id }
+	});
+
+	if (!material) return NextResponse.json({ msg: "Not found" }, { status: 404 });
 
 	let update = {
 		name: fd.get("name"),
@@ -33,24 +40,33 @@ export async function PUT(req, context) {
 		projectId: fd.get("projectId"),
 	};
 
-	// ✅ Upload new bill image if selected
-	if (file && file.name) {
+	if (file && file.type.startsWith("image/")) {
+		if (material.billImage) await deleteFromCloudinary(material.billImage);
+
 		const buffer = Buffer.from(await file.arrayBuffer());
 		update.billImage = await uploadToCloudinary(buffer);
 	}
 
-	await Material.update(update, {
-		where: { id: params.id, contractorId: user.id },
-	});
+	await Material.update(update, { where: { id: params.id } });
 
 	return NextResponse.json({ success: true, message: "Material updated" });
 }
 
-// ✅ DELETE — Delete Material
-export async function DELETE(req, context) {
-	const params = await context.params; // ✅ FIXED PARAMS
+
+// ✅ DELETE MATERIAL + delete image
+export async function DELETE(req, ctx) {
+	const params = await ctx.params; // ✅ fix
+
 	const user = getUser(req);
 	if (!user) return NextResponse.json({ msg: "Unauthorized" }, { status: 401 });
+
+	const material = await Material.findOne({
+		where: { id: params.id, contractorId: user.id }
+	});
+
+	if (!material) return NextResponse.json({ msg: "Not found" }, { status: 404 });
+
+	if (material.billImage) await deleteFromCloudinary(material.billImage);
 
 	await Material.destroy({
 		where: { id: params.id, contractorId: user.id },
@@ -58,3 +74,4 @@ export async function DELETE(req, context) {
 
 	return NextResponse.json({ success: true, message: "Material deleted" });
 }
+

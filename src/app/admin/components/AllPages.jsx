@@ -6,6 +6,7 @@ import ProjectsPage from "@/app/admin/components/Pages/Project";
 import AdminStagesPage from "@/app/admin/components/Pages/Stage";
 import ProfilePage from "@/app/admin/components/Pages/Profile";
 import MaterialPage from "@/app/admin/components/Pages/Material";
+import DrawingPage from "@/app/admin/components/Pages/Drawing";
 
 export default function AllPages({activePage}) {
 	switch (activePage) {
@@ -15,6 +16,8 @@ export default function AllPages({activePage}) {
 			return <UserPage/>;
 		case "Project":
 			return <ProjectsPage/>;
+		case "Drawing":
+			return <DrawingPage/>;
 		case "Stage":
 			return <AdminStagesPage/>;
 		case "Material":
