@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
 import Project from "@/models/Project";
 import Client from "@/models/Client";
 import Contractor from "@/models/Contractor";
+import Stage from "@/models/Stage";
 import "@/lib/db";
-import jwt from "jsonwebtoken";
 
 export async function GET(req) {
 	try {
@@ -44,19 +45,43 @@ export async function GET(req) {
 
 		const contractorId = decoded.id;
 
-		console.log("Fetching projects for contractor:", contractorId);
-
+		// ✅ Fetch contractor's projects
 		const projects = await Project.findAll({
 			where: { contractorId },
 			include: [
 				{ model: Client, as: "client", attributes: ["clientId", "name"] },
-
 				{ model: Contractor, as: "contractor", attributes: ["id", "name"] },
 			],
 			order: [["createdAt", "DESC"]],
 		});
 
-		return NextResponse.json({ success: true, projects });
+		// ✅ Fetch all stages
+		const stages = await Stage.findAll();
+
+		// ✅ Attach avgProgress to each project
+		const formatted = projects.map((project) => {
+			const projectStages = stages.filter((s) => s.projectId === project.id);
+
+			let avgProgress = 0;
+
+			if (projectStages.length > 0) {
+				const sum = projectStages.reduce(
+					(total, stage) => total + (stage.progress || 0),
+					0
+				);
+				avgProgress = Math.round(sum / projectStages.length);
+			}
+
+			return {
+				...project.toJSON(),
+				avgProgress,
+			};
+		});
+
+		return NextResponse.json({
+			success: true,
+			projects: formatted,
+		});
 
 	} catch (error) {
 		console.error("CONTRACTOR PROJECT ERROR =>", error);

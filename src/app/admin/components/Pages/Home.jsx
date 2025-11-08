@@ -156,6 +156,12 @@ export default function AdminDashboard({ setActivePage }) {
 		}
 	}
 
+	// ✅ get progress bar color
+	const getColor = (p) =>
+		p < 30 ? "bg-red-500" :
+			p < 70 ? "bg-yellow-500" :
+				"bg-green-600";
+
 	return (
 		<div className="min-h-screen bg-gray-50 px-6 py-10">
 
@@ -169,18 +175,15 @@ export default function AdminDashboard({ setActivePage }) {
 					<Bell className="h-7 w-7 text-gray-700" />
 					{newQueries > 0 && (
 						<span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">
-              {newQueries}
-            </span>
+							{newQueries}
+						</span>
 					)}
 				</div>
 			</div>
 
 			{/* STATS CARDS */}
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-				<Card
-					className="transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer"
-					onClick={() => loadDetails("clients")}
-				>
+				<Card className="transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer" onClick={() => loadDetails("clients")}>
 					<CardHeader className="flex justify-between items-center">
 						<CardTitle className="text-gray-700">Total Clients</CardTitle>
 						<Users className="h-7 w-7 text-blue-600" />
@@ -190,10 +193,7 @@ export default function AdminDashboard({ setActivePage }) {
 					</CardContent>
 				</Card>
 
-				<Card
-					className="transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer"
-					onClick={() => loadDetails("contractors")}
-				>
+				<Card className="transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer" onClick={() => loadDetails("contractors")}>
 					<CardHeader className="flex justify-between items-center">
 						<CardTitle className="text-gray-700">Contractors</CardTitle>
 						<Briefcase className="h-7 w-7 text-green-600" />
@@ -203,10 +203,7 @@ export default function AdminDashboard({ setActivePage }) {
 					</CardContent>
 				</Card>
 
-				<Card
-					className="transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer"
-					onClick={() => loadDetails("projects")}
-				>
+				<Card className="transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer" onClick={() => loadDetails("projects")}>
 					<CardHeader className="flex justify-between items-center">
 						<CardTitle className="text-gray-700">Projects</CardTitle>
 						<FolderKanban className="h-7 w-7 text-purple-600" />
@@ -231,35 +228,37 @@ export default function AdminDashboard({ setActivePage }) {
 			{selectedView && (
 				<Card className="shadow-xl p-6 bg-white border">
 
-					{/* Header + Button */}
 					<div className="flex justify-between items-center mb-5 border-b pb-3">
 						<h2 className="text-xl font-bold text-gray-800 capitalize">
 							{selectedView} Details
 						</h2>
 
 						{selectedView === "projects" && (
-							<Button
-								className="rounded-full cursor-pointer"
-								onClick={() => setActivePage("Project")}
-							>
+							<Button className="rounded-full cursor-pointer" onClick={() => setActivePage("Project")}>
 								View All Projects
 							</Button>
 						)}
 					</div>
 
-					{/* Table Loader */}
 					{tableLoading ? (
 						<div className="flex justify-center items-center h-40">
 							<Loader2 className="animate-spin h-10 w-10 text-gray-700" />
 						</div>
 					) : (
 						<>
-							{/* Scrollable table wrapper */}
 							<div className="overflow-auto max-h-[60vh] border rounded-lg">
 								<Table>
 									<TableHeader className="bg-gray-100">
 										<TableRow>
-											{selectedView === "clients" && (
+											{selectedView === "projects" ? (
+												<>
+													<TableHead>Project</TableHead>
+													<TableHead>Client</TableHead>
+													<TableHead>Contractor</TableHead>
+													<TableHead>Total Cost</TableHead>
+													<TableHead>Avg Progress</TableHead>
+												</>
+											) : selectedView === "clients" ? (
 												<>
 													<TableHead>Client ID</TableHead>
 													<TableHead>Name</TableHead>
@@ -268,9 +267,7 @@ export default function AdminDashboard({ setActivePage }) {
 													<TableHead>Projects</TableHead>
 													<TableHead>Contractors</TableHead>
 												</>
-											)}
-
-											{selectedView === "contractors" && (
+											) : (
 												<>
 													<TableHead>Contractor ID</TableHead>
 													<TableHead>Name</TableHead>
@@ -278,16 +275,6 @@ export default function AdminDashboard({ setActivePage }) {
 													<TableHead>Total Projects</TableHead>
 													<TableHead>Projects</TableHead>
 													<TableHead>Clients</TableHead>
-												</>
-											)}
-
-											{selectedView === "projects" && (
-												<>
-													<TableHead>Project</TableHead>
-													<TableHead>Client</TableHead>
-													<TableHead>Contractor</TableHead>
-													<TableHead>Total Cost</TableHead>
-													<TableHead>Avg Progress</TableHead>
 												</>
 											)}
 										</TableRow>
@@ -303,6 +290,24 @@ export default function AdminDashboard({ setActivePage }) {
 										) : (
 											paginatedData.map((item, i) => (
 												<TableRow key={i} className="hover:bg-gray-50 transition">
+													{selectedView === "projects" && (
+														<>
+															<TableCell>{item.title}</TableCell>
+															<TableCell>{item.client?.clientId} - {item.client?.name}</TableCell>
+															<TableCell>{item.contractor?.contractorId} - {item.contractor?.name}</TableCell>
+															<TableCell>₹ {item.totalCost || "-"}</TableCell>
+															<TableCell>
+																<div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
+																	<div
+																		className={`${getColor(item.avgProgress)} h-3 rounded-full`}
+																		style={{ width: `${item.avgProgress}%` }}
+																	></div>
+																</div>
+																<p className="text-xs text-gray-600">{item.avgProgress}%</p>
+															</TableCell>
+														</>
+													)}
+
 													{selectedView === "clients" && (
 														<>
 															<TableCell>{item.clientId}</TableCell>
@@ -324,16 +329,6 @@ export default function AdminDashboard({ setActivePage }) {
 															<TableCell>{item.clients}</TableCell>
 														</>
 													)}
-
-													{selectedView === "projects" && (
-														<>
-															<TableCell>{item.title}</TableCell>
-															<TableCell>{item.client?.clientId} - {item.client?.name}</TableCell>
-															<TableCell>{item.contractor?.contractorId} - {item.contractor?.name}</TableCell>
-															<TableCell>₹ {item.totalCost || "-"}</TableCell>
-															<TableCell>{item.avgProgress}%</TableCell>
-														</>
-													)}
 												</TableRow>
 											))
 										)}
@@ -345,10 +340,7 @@ export default function AdminDashboard({ setActivePage }) {
 								<Pagination className="mt-4">
 									<PaginationContent>
 										<PaginationItem>
-											<PaginationPrevious
-												onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
-												className="cursor-pointer"
-											/>
+											<PaginationPrevious onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)} className="cursor-pointer" />
 										</PaginationItem>
 
 										<PaginationItem>
@@ -356,12 +348,7 @@ export default function AdminDashboard({ setActivePage }) {
 										</PaginationItem>
 
 										<PaginationItem>
-											<PaginationNext
-												onClick={() =>
-													currentPage < totalPages && setCurrentPage(currentPage + 1)
-												}
-												className="cursor-pointer"
-											/>
+											<PaginationNext onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)} className="cursor-pointer" />
 										</PaginationItem>
 									</PaginationContent>
 								</Pagination>

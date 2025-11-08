@@ -7,10 +7,10 @@ import ProjectPage from "@/app/contractor/components/Pages/Project";
 import MaterialPage from "@/app/contractor/components/Pages/Material";
 import ContractorQueriesPage from "@/app/contractor/components/Pages/Query";
 
-export default function AllPages({activePage}) {
+export default function AllPages({activePage, setActivePage}) {
 	switch (activePage) {
 		case "Home":
-			return <HomePage/>;
+			return <HomePage setActivePage={setActivePage}/>;
 		case "Project":
 			return <ProjectPage/>;
 		case "Stage":
