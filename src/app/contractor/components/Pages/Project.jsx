@@ -75,7 +75,10 @@ export default function ContractorProjectsPage() {
 								<TableRow key={p.id}>
 									<TableCell>{p.serial}</TableCell>
 									<TableCell className="font-medium">{p.title}</TableCell>
-									<TableCell>{p.client?.clientId} — {p.client?.name}</TableCell>
+									<TableCell>
+										{p.client ? `${p.client.clientId} — ${p.client.name}` : "N/A"}
+									</TableCell>
+
 									<TableCell className="capitalize">{p.status}</TableCell>
 									<TableCell>{p.startDate ? new Date(p.startDate).toLocaleDateString() : "-"}</TableCell>
 									<TableCell>{p.endDate ? new Date(p.endDate).toLocaleDateString() : "-"}</TableCell>

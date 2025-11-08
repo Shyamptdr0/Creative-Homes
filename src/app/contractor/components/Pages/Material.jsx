@@ -134,6 +134,14 @@ export default function MaterialsPage() {
 		setOpenDialog(true);
 	};
 
+	// ✅ Group materials project-wise
+	const grouped = materials.reduce((acc, item) => {
+		const pid = item.project?.id || "No Project";
+		if (!acc[pid]) acc[pid] = { project: item.project, items: [] };
+		acc[pid].items.push(item);
+		return acc;
+	}, {});
+
 	return (
 		<div className="container mx-auto py-8 space-y-6">
 			<div className="flex justify-between items-center">
@@ -177,7 +185,7 @@ export default function MaterialsPage() {
 								<option value="used">Used</option>
 							</select>
 
-							<Label>Bill Image (only image)</Label>
+							<Label>Bill Image</Label>
 							<input
 								type="file"
 								accept="image/*"
@@ -199,72 +207,87 @@ export default function MaterialsPage() {
 			{loading ? (
 				<div>Loading...</div>
 			) : (
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Name</TableHead>
-							<TableHead>Qty</TableHead>
-							<TableHead>Unit</TableHead>
-							<TableHead>Cost</TableHead>
-							<TableHead>Project</TableHead>
-							<TableHead>Status</TableHead>
-							<TableHead>Bill</TableHead>
-							<TableHead>Actions</TableHead>
-						</TableRow>
-					</TableHeader>
+				Object.keys(grouped).map((pid) => {
+					const { project, items } = grouped[pid];
+					const total = items.reduce((sum, x) => sum + Number(x.cost || 0), 0);
 
-					<TableBody>
-						{materials.map((m) => (
-							<TableRow key={m.id}>
-								<TableCell>{m.name}</TableCell>
-								<TableCell>{m.quantity}</TableCell>
-								<TableCell>{m.unit}</TableCell>
-								<TableCell>₹{m.cost}</TableCell>
-								<TableCell>{m.project?.title}</TableCell>
-								<TableCell className="capitalize">{m.status}</TableCell>
+					return (
+						<div key={pid} className="border rounded p-4">
+							<h2 className="text-xl font-semibold mb-2">
+								{project?.title || "No Project Assigned"}
+							</h2>
 
-								<TableCell>
-									{m.billImage ? (
-										<Button size="sm" variant="secondary" onClick={() => { setSelectedImage(m.billImage); setImageDialog(true); }}>
-											View
-										</Button>
-									) : "-"}
-								</TableCell>
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead>Name</TableHead>
+										<TableHead>Qty</TableHead>
+										<TableHead>Unit</TableHead>
+										<TableHead>Cost</TableHead>
+										<TableHead>Status</TableHead>
+										<TableHead>Bill</TableHead>
+										<TableHead>Actions</TableHead>
+									</TableRow>
+								</TableHeader>
 
-								<TableCell className="flex gap-2">
-									<Button size="sm" onClick={() => openEdit(m)}>Edit</Button>
+								<TableBody>
+									{items.map((m) => (
+										<TableRow key={m.id}>
+											<TableCell>{m.name}</TableCell>
+											<TableCell>{m.quantity}</TableCell>
+											<TableCell>{m.unit}</TableCell>
+											<TableCell>₹{m.cost}</TableCell>
+											<TableCell className="capitalize">{m.status}</TableCell>
 
-									<AlertDialog>
-										<AlertDialogTrigger asChild>
-											<Button
-												size="sm"
-												variant="destructive"
-												onClick={() => setDeleteId(m.id)}
-											>
-												Delete
-											</Button>
-										</AlertDialogTrigger>
+											<TableCell>
+												{m.billImage ? (
+													<Button size="sm" variant="secondary"
+													        onClick={() => { setSelectedImage(m.billImage); setImageDialog(true); }}>
+														View
+													</Button>
+												) : "-"}
+											</TableCell>
 
-										<AlertDialogContent>
-											<AlertDialogHeader>
-												<AlertDialogTitle>Delete Material?</AlertDialogTitle>
-												<AlertDialogDescription>
-													This action cannot be undone.
-												</AlertDialogDescription>
-											</AlertDialogHeader>
-											<AlertDialogFooter>
-												<AlertDialogCancel>Cancel</AlertDialogCancel>
-												<AlertDialogAction onClick={confirmDelete}>
-													Delete
-												</AlertDialogAction>
-											</AlertDialogFooter>
-										</AlertDialogContent>
-									</AlertDialog>
-								</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
+											<TableCell className="flex gap-2">
+												<Button size="sm" onClick={() => openEdit(m)}>Edit</Button>
+
+												<AlertDialog>
+													<AlertDialogTrigger asChild>
+														<Button size="sm" variant="destructive" onClick={() => setDeleteId(m.id)}>
+															Delete
+														</Button>
+													</AlertDialogTrigger>
+
+													<AlertDialogContent>
+														<AlertDialogHeader>
+															<AlertDialogTitle>Delete Material?</AlertDialogTitle>
+															<AlertDialogDescription>
+																This action cannot be undone.
+															</AlertDialogDescription>
+														</AlertDialogHeader>
+														<AlertDialogFooter>
+															<AlertDialogCancel>Cancel</AlertDialogCancel>
+															<AlertDialogAction onClick={confirmDelete}>
+																Delete
+															</AlertDialogAction>
+														</AlertDialogFooter>
+													</AlertDialogContent>
+												</AlertDialog>
+											</TableCell>
+										</TableRow>
+									))}
+
+									{/* ✅ Footer with total cost */}
+									<TableRow className="bg-gray-100 font-semibold">
+										<TableCell colSpan={3}>Total Cost for this Project</TableCell>
+										<TableCell>₹{total}</TableCell>
+										<TableCell colSpan={3}></TableCell>
+									</TableRow>
+								</TableBody>
+							</Table>
+						</div>
+					);
+				})
 			)}
 
 			<Dialog open={imageDialog} onOpenChange={setImageDialog}>

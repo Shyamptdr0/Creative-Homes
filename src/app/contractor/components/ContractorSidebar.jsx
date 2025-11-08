@@ -30,8 +30,7 @@ export default function ContractorSidebar() {
 		{title: "Project", icon: HousePlus},
 		{title: "Stage", icon: ChartBarIncreasing},
 		{title: "Material", icon: BrickWall},
-		{title: "Uploads", icon: Upload},
-		{title: "Messages", icon: MessageSquare},
+		{title: "Query", icon: MessageSquare},
 		{title: "Profile", icon: CircleUser }
 	];
 

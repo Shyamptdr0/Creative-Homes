@@ -13,12 +13,23 @@ const Project = sequelize.define("Project", {
 	},
 	startDate: { type: DataTypes.DATE },
 	endDate: { type: DataTypes.DATE },
-	totalCost: { type: DataTypes.FLOAT },
+	totalCost: {
+		type: DataTypes.FLOAT,
+		defaultValue: 0,
+	},
+	// ✅ Material cost stored in project
+	totalMaterialCost: {
+		type: DataTypes.FLOAT,
+		defaultValue: 0,
+	},
+
+
+
 	clientId: { type: DataTypes.INTEGER, allowNull: false },
-	contractorId: { type: DataTypes.INTEGER, allowNull: false }
+	contractorId: { type: DataTypes.INTEGER, allowNull: false },
 });
 
-// ✅ Associations
+// ✅ Relationships
 Project.belongsTo(Client, { foreignKey: "clientId", as: "client" });
 Client.hasMany(Project, { foreignKey: "clientId" });
 

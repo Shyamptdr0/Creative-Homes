@@ -16,9 +16,7 @@ export async function GET(req) {
 			);
 		}
 
-		// ✅ Token Format: Bearer xxxxxxxxx
 		const token = authHeader.split(" ")[1];
-
 		if (!token) {
 			return NextResponse.json(
 				{ success: false, message: "Invalid token format" },
@@ -36,7 +34,7 @@ export async function GET(req) {
 			);
 		}
 
-		// ✅ Allow only contractor role
+		// ✅ Only contractor access
 		if (decoded.role !== "contractor") {
 			return NextResponse.json(
 				{ success: false, message: "Access denied" },
@@ -46,11 +44,14 @@ export async function GET(req) {
 
 		const contractorId = decoded.id;
 
+		console.log("Fetching projects for contractor:", contractorId);
+
 		const projects = await Project.findAll({
 			where: { contractorId },
 			include: [
 				{ model: Client, as: "client", attributes: ["clientId", "name"] },
-				{ model: Contractor, as: "contractor", attributes: ["contractorId", "name"] },
+
+				{ model: Contractor, as: "contractor", attributes: ["id", "name"] },
 			],
 			order: [["createdAt", "DESC"]],
 		});

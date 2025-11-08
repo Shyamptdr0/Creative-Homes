@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import Material from "@/models/Material";
 import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
 import { deleteFromCloudinary } from "@/lib/deleteFromCloudinary";
+import { updateProjectMaterialTotal } from "@/lib/updateProjectMaterialTotal";
 import "@/lib/db";
 
 function getUser(req) {
@@ -17,7 +18,7 @@ function getUser(req) {
 
 // ✅ UPDATE MATERIAL
 export async function PUT(req, ctx) {
-	const params = await ctx.params; // ✅ add this line
+	const params = await ctx.params;
 
 	const user = getUser(req);
 	if (!user) return NextResponse.json({ msg: "Unauthorized" }, { status: 401 });
@@ -31,6 +32,8 @@ export async function PUT(req, ctx) {
 
 	if (!material) return NextResponse.json({ msg: "Not found" }, { status: 404 });
 
+	const oldProjectId = material.projectId;
+
 	let update = {
 		name: fd.get("name"),
 		quantity: fd.get("quantity"),
@@ -40,6 +43,7 @@ export async function PUT(req, ctx) {
 		projectId: fd.get("projectId"),
 	};
 
+	// ✅ If bill changed
 	if (file && file.type.startsWith("image/")) {
 		if (material.billImage) await deleteFromCloudinary(material.billImage);
 
@@ -49,13 +53,18 @@ export async function PUT(req, ctx) {
 
 	await Material.update(update, { where: { id: params.id } });
 
+	// ✅ Update totals
+	if (oldProjectId !== Number(update.projectId)) {
+		await updateProjectMaterialTotal(oldProjectId); // old project
+	}
+	await updateProjectMaterialTotal(update.projectId); // new project
+
 	return NextResponse.json({ success: true, message: "Material updated" });
 }
 
-
-// ✅ DELETE MATERIAL + delete image
+// ✅ DELETE MATERIAL
 export async function DELETE(req, ctx) {
-	const params = await ctx.params; // ✅ fix
+	const params = await ctx.params;
 
 	const user = getUser(req);
 	if (!user) return NextResponse.json({ msg: "Unauthorized" }, { status: 401 });
@@ -72,6 +81,8 @@ export async function DELETE(req, ctx) {
 		where: { id: params.id, contractorId: user.id },
 	});
 
+	// ✅ Update totals
+	await updateProjectMaterialTotal(material.projectId);
+
 	return NextResponse.json({ success: true, message: "Material deleted" });
 }
-

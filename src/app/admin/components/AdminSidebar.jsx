@@ -13,7 +13,7 @@ import {
 	BrickWall,
 	Stars,
 	ChartBarIncreasing,
-	IndianRupee, PencilRuler
+	IndianRupee, PencilRuler, MessageCircle
 } from "lucide-react";
 import {DEFAULT_RUNTIME_WEBPACK} from "next/constants";
 
@@ -33,6 +33,7 @@ export default function AdminDashboard() {
 		{ title: "Stage", icon: ChartBarIncreasing },
 		{ title: "Material", icon: BrickWall},
 		{ title: "Payments" ,icon: IndianRupee},
+		{ title: "Query", icon: MessageCircle},
 		{ title: "Profile", icon: CircleUser }
 	];
 

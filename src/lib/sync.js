@@ -10,6 +10,7 @@ import Project from "../models/Project.js";
 import Stage from "../models/Stage.js";
 import Material from "../models/Material.js";
 import Drawing from "../models/Drawing.js"
+import Query from "../models/Query.js"
 
 dotenv.config();
 
