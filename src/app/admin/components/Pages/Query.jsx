@@ -26,6 +26,34 @@ export default function AdminQueriesPage() {
 	const [filterByProject, setFilterByProject] = useState({});
 	const [openProject, setOpenProject] = useState(null);
 
+	const [clientNew, setClientNew] = useState(0);
+	const [contractorNew, setContractorNew] = useState(0);
+
+	// ✅ Fetch new query counts for both tabs on load
+	const fetchCounts = async () => {
+		try {
+			const clientRes = await fetch(`/api/queries?type=client`);
+			const contractorRes = await fetch(`/api/queries?type=contractor`);
+
+			const clientData = await clientRes.json();
+			const contractorData = await contractorRes.json();
+
+			const c1 = Array.isArray(clientData)
+				? clientData.filter((q) => !q.reply).length
+				: 0;
+
+			const c2 = Array.isArray(contractorData)
+				? contractorData.filter((q) => !q.reply).length
+				: 0;
+
+			setClientNew(c1);
+			setContractorNew(c2);
+		} catch (err) {
+			console.error("Count fetch failed:", err);
+		}
+	};
+
+	// ✅ Fetch queries of current tab
 	const fetchQueries = async () => {
 		setLoading(true);
 		try {
@@ -33,10 +61,14 @@ export default function AdminQueriesPage() {
 			let data = await res.json();
 			if (!Array.isArray(data)) data = [];
 
-			// ✅ sort (latest first)
 			data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
 			setQueries(data);
+
+			const newCount = data.filter((q) => !q.reply).length;
+
+			if (tab === "client") setClientNew(newCount);
+			else setContractorNew(newCount);
+
 		} catch (err) {
 			console.error("API Error:", err);
 			setQueries([]);
@@ -44,6 +76,12 @@ export default function AdminQueriesPage() {
 		setLoading(false);
 	};
 
+	// ✅ On initial load, get counts for both tabs
+	useEffect(() => {
+		fetchCounts();
+	}, []);
+
+	// ✅ Load tab data when switching tabs
 	useEffect(() => {
 		fetchQueries();
 	}, [tab]);
@@ -61,6 +99,7 @@ export default function AdminQueriesPage() {
 		setReplyingId(null);
 		setReplyText("");
 		fetchQueries();
+		fetchCounts(); // ✅ update badges
 	};
 
 	const deleteQuery = async (id) => {
@@ -68,9 +107,10 @@ export default function AdminQueriesPage() {
 		setLoading(true);
 		await fetch(`/api/queries/${id}`, { method: "DELETE" });
 		fetchQueries();
+		fetchCounts(); // ✅ update badges
 	};
 
-	// ✅ Group queries by Project
+	// ✅ Group queries by project
 	const groupedQueries = queries.reduce((acc, q) => {
 		const projectName = q.Project?.title || "Unknown Project";
 		if (!acc[projectName]) acc[projectName] = [];
@@ -99,7 +139,6 @@ export default function AdminQueriesPage() {
 
 			return (
 				<Card key={project} className="mb-4 shadow-sm">
-					{/* ✅ COLLAPSIBLE HEADER */}
 					<CardHeader
 						className="flex justify-between items-center cursor-pointer"
 						onClick={() => setOpenProject(isOpen ? null : project)}
@@ -123,12 +162,11 @@ export default function AdminQueriesPage() {
 						)}
 					</CardHeader>
 
-					{/* ✅ COLLAPSIBLE CONTENT */}
 					{isOpen && (
 						<CardContent className="space-y-4 pb-6">
 							<div className="flex justify-between items-center px-1">
 								<p className="text-sm text-gray-600">
-									👤 Client: <strong>{clientName}</strong> | 🔧 Contractor:{" "}
+									 🔧 Contractor:{" "}
 									<strong>{contractorName}</strong>
 								</p>
 
@@ -254,21 +292,32 @@ export default function AdminQueriesPage() {
 
 			<Tabs defaultValue="client" className="w-full" onValueChange={setTab}>
 				<TabsList className="mb-5 bg-gray-100 w-fit p-1 rounded-full">
-					<TabsTrigger value="client" className="px-6 rounded-full">
+
+					<TabsTrigger value="client" className="px-6 rounded-full flex items-center gap-2">
 						Client Queries
+						{clientNew > 0 && (
+							<span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {clientNew}
+              </span>
+						)}
 					</TabsTrigger>
-					<TabsTrigger value="contractor" className="px-6 rounded-full">
+
+					<TabsTrigger value="contractor" className="px-6 rounded-full flex items-center gap-2">
 						Contractor Queries
+						{contractorNew > 0 && (
+							<span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {contractorNew}
+              </span>
+						)}
 					</TabsTrigger>
+
 				</TabsList>
 
 				<TabsContent value="client">
 					{queries.length > 0 ? (
 						renderGrouped()
 					) : (
-						<p className="text-gray-500 text-center py-8">
-							No client queries found
-						</p>
+						<p className="text-gray-500 text-center py-8">No client queries found</p>
 					)}
 				</TabsContent>
 
@@ -276,9 +325,7 @@ export default function AdminQueriesPage() {
 					{queries.length > 0 ? (
 						renderGrouped()
 					) : (
-						<p className="text-gray-500 text-center py-8">
-							No contractor queries found
-						</p>
+						<p className="text-gray-500 text-center py-8">No contractor queries found</p>
 					)}
 				</TabsContent>
 			</Tabs>

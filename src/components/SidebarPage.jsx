@@ -16,9 +16,8 @@ import {
 
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import HeaderPage from "@/components/HeaderPage";
 
 export default function SidebarPage({
 	                                    role = "admin",
@@ -31,7 +30,6 @@ export default function SidebarPage({
 		if (typeof window !== "undefined") {
 			return sessionStorage.getItem(`${role}-activePage`) || menuItems[0]?.title;
 		}
-		return "Dashboard";
 	});
 
 	const handleSetActivePage = (page) => {
@@ -98,15 +96,20 @@ export default function SidebarPage({
 
 				{/* Main Content */}
 				<main className="flex-1 flex flex-col">
-					<HeaderPage />
 					<div className="p-6 flex-1 overflow-auto">
 						<div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg border shadow-sm">
 							<h1 className="text-xl font-bold text-gray-800">{activePage}</h1>
 							<SidebarTrigger />
 						</div>
 
-						{/* Dynamic Content */}
-						{ContentComponent && <ContentComponent activePage={activePage} role={role} />}
+						{/* ✅ FIX: pass setActivePage down */}
+						{ContentComponent && (
+							<ContentComponent
+								activePage={activePage}
+								setActivePage={handleSetActivePage}
+								role={role}
+							/>
+						)}
 					</div>
 				</main>
 			</div>

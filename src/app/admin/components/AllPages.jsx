@@ -9,27 +9,29 @@ import MaterialPage from "@/app/admin/components/Pages/Material";
 import DrawingPage from "@/app/admin/components/Pages/Drawing";
 import AdminQueriesPage from "@/app/admin/components/Pages/Query";
 
-export default function AllPages({activePage}) {
+export default function AllPages({ activePage, setActivePage }) {
 	switch (activePage) {
 		case "Home":
-			return <HomePage/>;
+			return <HomePage setActivePage={setActivePage} />;
 		case "Users":
-			return <UserPage/>;
+			return <UserPage />;
 		case "Project":
-			return <ProjectsPage/>;
+			return <ProjectsPage />;
 		case "Drawing":
-			return <DrawingPage/>;
+			return <DrawingPage />;
 		case "Stage":
-			return <AdminStagesPage/>;
+			return <AdminStagesPage />;
 		case "Material":
-			return <MaterialPage/>
+			return <MaterialPage />
 		case "Query":
-			return <AdminQueriesPage/>
-		case "Profile":
-			return <ProfilePage/>
+			return <AdminQueriesPage />;
+		// case "Profile":
+		// 	return <ProfilePage />;
 		default:
-			return (<div className="p-4">
+			return (
+				<div className="p-4">
 					<h2 className="text-xl font-semibold">Page Not Found</h2>
-				</div>);
+				</div>
+			);
 	}
 }

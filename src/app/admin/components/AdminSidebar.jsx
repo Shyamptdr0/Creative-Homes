@@ -34,7 +34,7 @@ export default function AdminDashboard() {
 		{ title: "Material", icon: BrickWall},
 		{ title: "Payments" ,icon: IndianRupee},
 		{ title: "Query", icon: MessageCircle},
-		{ title: "Profile", icon: CircleUser }
+		// { title: "Profile", icon: CircleUser }
 	];
 
 	return (
