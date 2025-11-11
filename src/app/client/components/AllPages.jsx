@@ -9,7 +9,7 @@ export default function AllPages({activePage}) {
 	switch (activePage) {
 		case "Home":
 			return <HomePage/>;
-		case "Project Progress":
+		case "Project":
 			return <ClientStagesPage/>
 		case "Profile":
 			return <ProfilePage/>

@@ -116,7 +116,7 @@ export default function StagesPage() {
 	};
 
 	const deleteStage = async (id) => {
-		if (!confirm("Delete stage?")) return;
+		if (!confirm("Delete stages?")) return;
 		await fetch(`/api/stages/${id}`, { method: "DELETE" });
 		fetchData();
 	};

@@ -22,7 +22,7 @@ export default function ClientSidebar() {
 
 	const menuItems = [
 		{ title: "Home", icon: Home },
-		{ title: "Project Progress", icon: CheckCircle },
+		{ title: "Project", icon: CheckCircle },
 		{ title: "Documents", icon: FolderOpen },
 		{ title: "Queries", icon: MessageSquare },
 		{ title: "Payments", icon: CreditCard },

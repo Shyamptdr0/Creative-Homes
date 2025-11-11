@@ -51,7 +51,7 @@ export default function HeroPage() {
 			icon: <Speaker className="w-10 h-10 text-blue-500" />,
 			title: "Track the construction",
 			description:
-				"Stay informed with regular updates on progress and quality checks at every stage.",
+				"Stay informed with regular updates on progress and quality checks at every stages.",
 		},
 		{
 			icon: <Key className="w-10 h-10 text-blue-500" />,

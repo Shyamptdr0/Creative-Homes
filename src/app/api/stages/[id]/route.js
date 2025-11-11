@@ -67,7 +67,7 @@ export async function DELETE(req, ctx) {
 		// ✅ delete remarks first
 		await StageRemark.destroy({ where: { stageId: id } });
 
-		// ✅ delete stage
+		// ✅ delete stages
 		await stage.destroy();
 
 		return NextResponse.json({ success: true, message: "Deleted" });
