@@ -29,6 +29,10 @@ export default function UserPage() {
 	const [formData, setFormData] = useState({ name: "", phone: "", address: "", email: "" });
 	const [users, setUsers] = useState([]);
 
+	// ✅ Added state (correct usage)
+	const [projects, setProjects] = useState([]);
+	const [projectTypes, setProjectTypes] = useState([]);
+
 	const [editUser, setEditUser] = useState(null);
 	const [openEditDialog, setOpenEditDialog] = useState(false);
 
@@ -40,17 +44,28 @@ export default function UserPage() {
 
 	const [loading, setLoading] = useState(true);
 
-	// ✅ Fetch Users
+	// ✅ Fetch users + projects + project types
 	const fetchUsers = async () => {
 		try {
 			setLoading(true);
 
-			const res = await fetch("/api/admin/users");
-			const data = await res.json();
-			if (data.success) setUsers(data.users);
+			const [usersRes, projectsRes, typeRes] = await Promise.all([
+				fetch("/api/admin/users"),
+				fetch("/api/projects"),
+				fetch("/api/project-types"),
+			]);
+
+			const usersData = await usersRes.json();
+			const projectsData = await projectsRes.json();
+			const typesData = await typeRes.json();
+
+			setUsers(usersData.users || []);
+			setProjects(projectsData.projects || []);
+			setProjectTypes(typesData.types || []);
 
 		} catch (err) {
-			toast.error("Failed to load users");
+			console.error(err);
+			toast.error("Failed to load users or projects");
 		} finally {
 			setLoading(false);
 		}
@@ -60,6 +75,7 @@ export default function UserPage() {
 		fetchUsers();
 	}, []);
 
+	// ✅ CREATE USER
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		const res = await fetch("/api/admin/users", {
@@ -77,6 +93,7 @@ export default function UserPage() {
 		} else toast.error("Failed to create user");
 	};
 
+	// ✅ DELETE USER
 	const confirmDelete = (u) => {
 		setDeleteUser(u);
 		setOpenDeleteDialog(true);
@@ -112,13 +129,32 @@ export default function UserPage() {
 		} else toast.error("Update failed");
 	};
 
+	// ✅ Filter users by role
 	const filteredUsers = users.filter((u) => u.role === activeTab);
+
+	// ✅ Connect users -> projects -> projectTypes
+	const userWithProjectData = filteredUsers.map((u) => {
+		const userProjects = projects.filter(
+			(p) =>
+				(activeTab === "client" && p.clientId === u.id) ||
+				(activeTab === "contractor" && p.contractorId === u.id)
+		);
+
+		const finalProjects = userProjects.map((p) => {
+			const typeName = projectTypes.find((t) => t.id === p.projectTypeId)?.name || "Unknown";
+			return { ...p, projectTypeName: typeName };
+		});
+
+		return {
+			...u,
+			userProjects: finalProjects,
+		};
+	});
 
 	return (
 		<div className="container mx-auto grid grid-cols-1 gap-8 py-8">
 			<h1 className="text-2xl font-bold mb-4">User Management</h1>
 
-			{/* ✅ ADD USER BUTTON */}
 			<div className="rounded-lg border bg-background p-5 shadow-sm">
 				<Tabs value={activeTab} onValueChange={setActiveTab}>
 					<TabsList>
@@ -134,7 +170,7 @@ export default function UserPage() {
 
 					<TabsContent value={activeTab}>
 						<div className="mt-5 rounded-md border overflow-x-auto">
-							<Table className="min-w-[900px]">
+							<Table className="min-w-[1100px]">
 								<TableCaption>List of {activeTab} users</TableCaption>
 
 								<TableHeader>
@@ -143,6 +179,8 @@ export default function UserPage() {
 										<TableHead>Email</TableHead>
 										<TableHead>Phone</TableHead>
 										<TableHead>Address</TableHead>
+										<TableHead>Projects</TableHead>
+										<TableHead>Project Types</TableHead>
 										<TableHead>User ID</TableHead>
 										<TableHead>Password</TableHead>
 										<TableHead>Actions</TableHead>
@@ -152,18 +190,32 @@ export default function UserPage() {
 								<TableBody>
 									{loading ? (
 										<TableRow>
-											<TableCell colSpan={7} className="text-center py-6">
+											<TableCell colSpan={9} className="text-center py-6">
 												<Loader2 className="animate-spin w-6 h-6 mx-auto" />
 											</TableCell>
 										</TableRow>
-									) : filteredUsers.length > 0 ? (
-										filteredUsers.map((u) => (
+									) : userWithProjectData.length > 0 ? (
+										userWithProjectData.map((u) => (
 											<TableRow key={u.id}>
 												<TableCell>{u.name}</TableCell>
 												<TableCell>{u.email}</TableCell>
 												<TableCell>{u.phone}</TableCell>
 												<TableCell>{u.address}</TableCell>
+
+												<TableCell>
+													{u.userProjects.length
+														? u.userProjects.map((p) => p.title).join(", ")
+														: "-"}
+												</TableCell>
+
+												<TableCell>
+													{u.userProjects.length
+														? u.userProjects.map((p) => p.projectTypeName).join(", ")
+														: "-"}
+												</TableCell>
+
 												<TableCell>{u.userId}</TableCell>
+
 												<TableCell>
 													{showPassword[u.id] ? (u.visiblePassword || u.password) : "••••••"}{" "}
 													<button
@@ -175,7 +227,6 @@ export default function UserPage() {
 												</TableCell>
 
 												<TableCell className="flex gap-2">
-													{/* ✅ FIXED EDIT BUTTON */}
 													<Button
 														size="sm"
 														onClick={() => {
@@ -198,7 +249,7 @@ export default function UserPage() {
 										))
 									) : (
 										<TableRow>
-											<TableCell colSpan={7} className="text-center text-gray-500 py-4">
+											<TableCell colSpan={9} className="text-center text-gray-500 py-4">
 												No users found
 											</TableCell>
 										</TableRow>
@@ -207,8 +258,10 @@ export default function UserPage() {
 
 								<TableFooter>
 									<TableRow>
-										<TableCell colSpan={6}>Total Users</TableCell>
-										<TableCell className="font-medium">{filteredUsers.length}</TableCell>
+										<TableCell colSpan={8}>Total Users</TableCell>
+										<TableCell className="font-medium">
+											{userWithProjectData.length}
+										</TableCell>
 									</TableRow>
 								</TableFooter>
 							</Table>
@@ -217,7 +270,7 @@ export default function UserPage() {
 				</Tabs>
 			</div>
 
-			{/* ✅ EDIT USER DIALOG — FIXED */}
+			{/* ✅ Edit User Dialog */}
 			<Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
 				<DialogContent>
 					<DialogHeader>
@@ -265,7 +318,9 @@ export default function UserPage() {
 						<DialogTitle className="text-red-600">Delete User?</DialogTitle>
 					</DialogHeader>
 
-					<p className="mb-3">Are you sure you want to delete <b>{deleteUser?.name}</b>?</p>
+					<p className="mb-3">
+						Are you sure you want to delete <b>{deleteUser?.name}</b>?
+					</p>
 
 					<div className="flex justify-end gap-3">
 						<Button variant="outline" onClick={() => setOpenDeleteDialog(false)}>
@@ -278,7 +333,7 @@ export default function UserPage() {
 				</DialogContent>
 			</Dialog>
 
-			{/* ✅ ADD USER DIALOG */}
+			{/* ✅ ADD USER */}
 			<Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
 				<DialogContent>
 					<DialogHeader>

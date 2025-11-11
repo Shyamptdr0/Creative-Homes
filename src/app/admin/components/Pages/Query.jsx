@@ -9,7 +9,13 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Trash2, Reply, ChevronDown, ChevronUp } from "lucide-react";
+import {
+	Loader2,
+	Trash2,
+	Reply,
+	ChevronDown,
+	ChevronUp,
+} from "lucide-react";
 import {
 	Tabs,
 	TabsList,
@@ -28,34 +34,30 @@ export default function AdminQueriesPage() {
 
 	const [clientNew, setClientNew] = useState(0);
 	const [contractorNew, setContractorNew] = useState(0);
+	const [pageLoading, setPageLoading] = useState(true); // ✅ page data loading
 
-	// ✅ Fetch new query counts for both tabs on load
+	// ✅ Fetch counts for badges
 	const fetchCounts = async () => {
 		try {
 			const clientRes = await fetch(`/api/queries?type=client`);
 			const contractorRes = await fetch(`/api/queries?type=contractor`);
 
-			const clientData = await clientRes.json();
-			const contractorData = await contractorRes.json();
+			let clientData = await clientRes.json();
+			let contractorData = await contractorRes.json();
 
-			const c1 = Array.isArray(clientData)
-				? clientData.filter((q) => !q.reply).length
-				: 0;
+			if (!Array.isArray(clientData)) clientData = [];
+			if (!Array.isArray(contractorData)) contractorData = [];
 
-			const c2 = Array.isArray(contractorData)
-				? contractorData.filter((q) => !q.reply).length
-				: 0;
-
-			setClientNew(c1);
-			setContractorNew(c2);
+			setClientNew(clientData.filter((q) => !q.reply).length);
+			setContractorNew(contractorData.filter((q) => !q.reply).length);
 		} catch (err) {
 			console.error("Count fetch failed:", err);
 		}
 	};
 
-	// ✅ Fetch queries of current tab
+	// ✅ Fetch queries for active tab
 	const fetchQueries = async () => {
-		setLoading(true);
+		setPageLoading(true);
 		try {
 			const res = await fetch(`/api/queries?type=${tab}`);
 			let data = await res.json();
@@ -65,23 +67,19 @@ export default function AdminQueriesPage() {
 			setQueries(data);
 
 			const newCount = data.filter((q) => !q.reply).length;
-
 			if (tab === "client") setClientNew(newCount);
 			else setContractorNew(newCount);
 
-		} catch (err) {
-			console.error("API Error:", err);
+		} catch {
 			setQueries([]);
 		}
-		setLoading(false);
+		setPageLoading(false);
 	};
 
-	// ✅ On initial load, get counts for both tabs
 	useEffect(() => {
 		fetchCounts();
 	}, []);
 
-	// ✅ Load tab data when switching tabs
 	useEffect(() => {
 		fetchQueries();
 	}, [tab]);
@@ -99,7 +97,8 @@ export default function AdminQueriesPage() {
 		setReplyingId(null);
 		setReplyText("");
 		fetchQueries();
-		fetchCounts(); // ✅ update badges
+		fetchCounts();
+		setLoading(false);
 	};
 
 	const deleteQuery = async (id) => {
@@ -107,10 +106,11 @@ export default function AdminQueriesPage() {
 		setLoading(true);
 		await fetch(`/api/queries/${id}`, { method: "DELETE" });
 		fetchQueries();
-		fetchCounts(); // ✅ update badges
+		fetchCounts();
+		setLoading(false);
 	};
 
-	// ✅ Group queries by project
+	// ✅ Group by project
 	const groupedQueries = queries.reduce((acc, q) => {
 		const projectName = q.Project?.title || "Unknown Project";
 		if (!acc[projectName]) acc[projectName] = [];
@@ -118,6 +118,7 @@ export default function AdminQueriesPage() {
 		return acc;
 	}, {});
 
+	// ✅ Render grouped list
 	const renderGrouped = () =>
 		Object.keys(groupedQueries).map((project) => {
 			const projectQueries = groupedQueries[project];
@@ -126,7 +127,7 @@ export default function AdminQueriesPage() {
 			const newCount = projectQueries.filter((q) => !q.reply).length;
 			const filter = filterByProject[project] || "all";
 
-			const filteredQueries =
+			const filtered =
 				filter === "new"
 					? projectQueries.filter((q) => !q.reply)
 					: filter === "resolved"
@@ -135,43 +136,37 @@ export default function AdminQueriesPage() {
 
 			const firstQuery = projectQueries[0];
 			const contractorName = firstQuery.Contractor?.name || "N/A";
-			const clientName = firstQuery.Client?.name || "N/A";
 
 			return (
-				<Card key={project} className="mb-4 shadow-sm">
+				<Card key={project} className="mb-4 border shadow-md rounded-xl bg-white">
 					<CardHeader
-						className="flex justify-between items-center cursor-pointer"
+						className="flex justify-between items-center cursor-pointer py-4 px-5 hover:bg-gray-50 transition"
 						onClick={() => setOpenProject(isOpen ? null : project)}
 					>
-						<CardTitle className="flex items-center gap-2">
+						<CardTitle className="flex items-center gap-2 text-lg">
 							🏗 {project}
 							<span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                {projectQueries.length}
-              </span>
+								{projectQueries.length}
+							</span>
 							{newCount > 0 && (
 								<span className="text-xs bg-red-200 text-red-700 px-2 py-0.5 rounded-full">
-                  {newCount} New
-                </span>
+									{newCount} New
+								</span>
 							)}
 						</CardTitle>
 
-						{isOpen ? (
-							<ChevronUp className="h-5 w-5" />
-						) : (
-							<ChevronDown className="h-5 w-5" />
-						)}
+						{isOpen ? <ChevronUp /> : <ChevronDown />}
 					</CardHeader>
 
 					{isOpen && (
 						<CardContent className="space-y-4 pb-6">
 							<div className="flex justify-between items-center px-1">
 								<p className="text-sm text-gray-600">
-									 🔧 Contractor:{" "}
-									<strong>{contractorName}</strong>
+									🔧 Contractor: <strong>{contractorName}</strong>
 								</p>
 
 								<select
-									className="border rounded px-2 py-1 text-xs"
+									className="border rounded px-2 py-1 text-xs bg-white"
 									value={filter}
 									onChange={(e) =>
 										setFilterByProject({
@@ -186,94 +181,91 @@ export default function AdminQueriesPage() {
 								</select>
 							</div>
 
-							{filteredQueries.length > 0 ? (
-								filteredQueries.map((q, index) => (
-									<Card
-										key={q.id}
-										className="border bg-white shadow-sm p-4 rounded-lg"
-									>
-										<div className="flex justify-between">
-											<p className="font-semibold">Query #{index + 1}</p>
-
-											<span
-												className={`text-xs px-2 py-1 rounded-full ${
-													q.status === "open"
-														? "bg-yellow-100 text-yellow-700"
-														: "bg-green-100 text-green-700"
-												}`}
-											>
-                        {q.status.toUpperCase()}
-                      </span>
-										</div>
-
-										<p className="mt-2">
-											<strong>Message:</strong> {q.message}
-										</p>
-
-										{q.reply && (
-											<p className="p-2 bg-green-50 border rounded mt-2 text-sm">
-												<strong>Reply:</strong> {q.reply}
-											</p>
-										)}
-
-										<p className="text-xs text-gray-400 mt-1">
-											{new Date(q.createdAt).toLocaleString()}
-										</p>
-
-										<div className="flex gap-2 mt-3">
-											{!q.reply && (
-												<Button
-													size="sm"
-													className="rounded-full"
-													onClick={() => setReplyingId(q.id)}
-												>
-													<Reply className="h-4 w-4 mr-1" /> Reply
-												</Button>
-											)}
-											<Button
-												size="sm"
-												variant="destructive"
-												className="rounded-full"
-												onClick={() => deleteQuery(q.id)}
-											>
-												<Trash2 className="h-4 w-4 mr-1" /> Delete
-											</Button>
-										</div>
-
-										{replyingId === q.id && (
-											<div className="mt-4 p-4 border rounded-lg bg-gray-50 space-y-3">
-												<Textarea
-													className="rounded-lg"
-													placeholder="Type reply..."
-													value={replyText}
-													onChange={(e) => setReplyText(e.target.value)}
-												/>
-												<div className="flex gap-2">
-													<Button
-														size="sm"
-														className="rounded-full"
-														onClick={() => submitReply(q.id)}
-													>
-														Send Reply
-													</Button>
-													<Button
-														size="sm"
-														variant="secondary"
-														className="rounded-full"
-														onClick={() => setReplyingId(null)}
-													>
-														Cancel
-													</Button>
-												</div>
-											</div>
-										)}
-									</Card>
-								))
-							) : (
+							{filtered.length === 0 && (
 								<p className="text-gray-400 text-sm mt-3">
 									No queries found for this filter
 								</p>
 							)}
+
+							{filtered.map((q, index) => (
+								<Card key={q.id} className="border bg-white shadow-sm p-4 rounded-lg">
+									<div className="flex justify-between">
+										<p className="font-semibold text-sm">Query #{index + 1}</p>
+
+										<span
+											className={`text-xs px-2 py-1 rounded-full ${
+												q.reply
+													? "bg-green-100 text-green-700"
+													: "bg-yellow-100 text-yellow-700"
+											}`}
+										>
+											{q.reply ? "RESOLVED" : "OPEN"}
+										</span>
+									</div>
+
+									<p className="mt-2 text-sm">
+										<strong>Message:</strong> {q.message}
+									</p>
+
+									{q.reply && (
+										<p className="p-2 bg-green-50 border rounded mt-2 text-sm">
+											<strong>Reply:</strong> {q.reply}
+										</p>
+									)}
+
+									<p className="text-xs text-gray-400 mt-1">
+										{new Date(q.createdAt).toLocaleString()}
+									</p>
+
+									<div className="flex gap-2 mt-3">
+										{!q.reply && (
+											<Button size="sm" onClick={() => setReplyingId(q.id)}>
+												<Reply className="h-4 w-4 mr-1" /> Reply
+											</Button>
+										)}
+
+										<Button
+											size="sm"
+											variant="destructive"
+											onClick={() => deleteQuery(q.id)}
+										>
+											<Trash2 className="h-4 w-4 mr-1" /> Delete
+										</Button>
+									</div>
+
+									{replyingId === q.id && (
+										<div className="mt-4 p-4 border rounded-lg bg-gray-50 space-y-3">
+											<Textarea
+												placeholder="Type reply..."
+												value={replyText}
+												onChange={(e) => setReplyText(e.target.value)}
+											/>
+
+											<div className="flex gap-2">
+												<Button
+													size="sm"
+													onClick={() => submitReply(q.id)}
+													disabled={loading}
+												>
+													{loading ? (
+														<Loader2 className="animate-spin h-4 w-4" />
+													) : (
+														"Send Reply"
+													)}
+												</Button>
+
+												<Button
+													size="sm"
+													variant="secondary"
+													onClick={() => setReplyingId(null)}
+												>
+													Cancel
+												</Button>
+											</div>
+										</div>
+									)}
+								</Card>
+							))}
 						</CardContent>
 					)}
 				</Card>
@@ -284,45 +276,50 @@ export default function AdminQueriesPage() {
 		<div className="p-6 max-w-6xl mx-auto">
 			<h1 className="text-3xl font-bold mb-6">Support Queries</h1>
 
-			{loading && (
-				<div className="flex justify-center mb-3">
-					<Loader2 className="animate-spin h-6 w-6" />
-				</div>
-			)}
-
 			<Tabs defaultValue="client" className="w-full" onValueChange={setTab}>
-				<TabsList className="mb-5 bg-gray-100 w-fit p-1 rounded-full">
-
+				<TabsList className="mb-5 bg-gray-100 w-fit p-1 rounded-full shadow-sm">
 					<TabsTrigger value="client" className="px-6 rounded-full flex items-center gap-2">
 						Client Queries
 						{clientNew > 0 && (
 							<span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                {clientNew}
-              </span>
+								{clientNew}
+							</span>
 						)}
 					</TabsTrigger>
 
-					<TabsTrigger value="contractor" className="px-6 rounded-full flex items-center gap-2">
+					<TabsTrigger
+						value="contractor"
+						className="px-6 rounded-full flex items-center gap-2"
+					>
 						Contractor Queries
 						{contractorNew > 0 && (
 							<span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                {contractorNew}
-              </span>
+								{contractorNew}
+							</span>
 						)}
 					</TabsTrigger>
-
 				</TabsList>
 
+				{/* ✅ Client Content */}
 				<TabsContent value="client">
-					{queries.length > 0 ? (
+					{pageLoading ? (
+						<div className="flex justify-center py-10">
+							<Loader2 className="animate-spin h-7 w-7 text-gray-600" />
+						</div>
+					) : queries.length > 0 ? (
 						renderGrouped()
 					) : (
 						<p className="text-gray-500 text-center py-8">No client queries found</p>
 					)}
 				</TabsContent>
 
+				{/* ✅ Contractor Content */}
 				<TabsContent value="contractor">
-					{queries.length > 0 ? (
+					{pageLoading ? (
+						<div className="flex justify-center py-10">
+							<Loader2 className="animate-spin h-7 w-7 text-gray-600" />
+						</div>
+					) : queries.length > 0 ? (
 						renderGrouped()
 					) : (
 						<p className="text-gray-500 text-center py-8">No contractor queries found</p>

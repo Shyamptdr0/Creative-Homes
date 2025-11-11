@@ -34,8 +34,8 @@ import {
 	Video,
 	File,
 	Download,
-	ListChecks,      // ✅ Stage icon
-	Archive, PencilRuler          // ✅ Drawing icon
+	ListChecks,
+	PencilRuler
 } from "lucide-react";
 
 import {
@@ -126,27 +126,37 @@ export default function ContractorDashboard({setActivePage}) {
 
 		try {
 			const token = sessionStorage.getItem("token");
+
 			const res = await fetch("/api/contractors/projects", {
-				headers: {Authorization: `Bearer ${token}`},
+				headers: { Authorization: `Bearer ${token}` },
 			});
 			const data = await res.json();
+
+			// ✅ Get project types
+			const typeRes = await fetch("/api/project-types");
+			const typeData = await typeRes.json();
+			const projectTypes = typeData.types || [];
 
 			const fullData = await Promise.all(
 				data.projects.map(async (p) => {
 					const sRes = await fetch(`/api/contractors/stages?projectId=${p.id}`, {
-						headers: {Authorization: `Bearer ${token}`},
+						headers: { Authorization: `Bearer ${token}` },
 					});
 					const dRes = await fetch(`/api/contractors/drawings?projectId=${p.id}`, {
-						headers: {Authorization: `Bearer ${token}`},
+						headers: { Authorization: `Bearer ${token}` },
 					});
 
 					const stages = await sRes.json();
 					const drawings = await dRes.json();
 
+					// ✅ Add projectTypeName
+					const typeName = projectTypes.find((t) => t.id === p.projectTypeId)?.name || "N/A";
+
 					return {
 						...p,
+						projectTypeName: typeName,
 						projectStages: stages.stages || [],
-						projectDrawings: drawings.drawings || []
+						projectDrawings: drawings.drawings || [],
 					};
 				})
 			);
@@ -157,7 +167,6 @@ export default function ContractorDashboard({setActivePage}) {
 		}
 	}
 
-	// ✅ Check file type
 	const isImage = (url) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
 	const isVideo = (url) => /\.(mp4|mov)$/i.test(url);
 	const isPDF = (url) => /\.pdf$/i.test(url);
@@ -169,45 +178,30 @@ export default function ContractorDashboard({setActivePage}) {
 		return <File className="w-4 h-4" />;
 	}
 
-	// ✅ Open Preview with related project files
 	const openPreview = (drawing, allDrawings) => {
 		setPreviewFile(drawing.fileUrl);
 		setPreviewDrawing(drawing);
 		setProjectDrawings(allDrawings);
 	};
 
-	// ✅ Download file
 	const downloadFile = async () => {
 		if (!previewFile || !previewDrawing) return;
-
-		try {
-			const response = await fetch(previewFile);
-			const blob = await response.blob();
-
-			const url = window.URL.createObjectURL(blob);
-			const link = document.createElement("a");
-
-			const project = previewDrawing.project?.title || "Project";
-			const title = previewDrawing.title || "Drawing";
-			const ext = previewFile.split(".").pop();
-			const filename = `${project}-${title}.${ext}`.replace(/\s+/g, "_");
-
-			link.href = url;
-			link.setAttribute("download", filename);
-
-			document.body.appendChild(link);
-			link.click();
-			link.remove();
-			URL.revokeObjectURL(url);
-		} catch (e) {
-			console.error("Download failed", e);
-		}
+		const response = await fetch(previewFile);
+		const blob = await response.blob();
+		const url = window.URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		const ext = previewFile.split(".").pop();
+		link.href = url;
+		link.setAttribute("download", `${previewDrawing.title}.${ext}`);
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		URL.revokeObjectURL(url);
 	};
 
 	return (
 		<div className="p-8 min-h-screen bg-gradient-to-br from-gray-100 to-gray-50">
 
-			{/* HEADER */}
 			<div className="flex justify-between items-center mb-8">
 				<h1 className="text-3xl font-bold text-gray-800">Contractor Dashboard</h1>
 
@@ -221,10 +215,7 @@ export default function ContractorDashboard({setActivePage}) {
 				</div>
 			</div>
 
-			{/* ✅ DASHBOARD CARDS */}
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-
-				{/* ✅ PROJECT CARD */}
 				<Card
 					className="shadow-md hover:shadow-2xl cursor-pointer bg-white/80 backdrop-blur border border-purple-200 hover:scale-[1.01] transition"
 					onClick={loadProjectsTable}
@@ -239,10 +230,6 @@ export default function ContractorDashboard({setActivePage}) {
 					</CardContent>
 				</Card>
 
-				{/* ✅ PAYMENT CARD */}
-
-
-				{/* ✅ STAGES CARD */}
 				<Card
 					className="shadow-md hover:shadow-2xl cursor-pointer bg-white/80 backdrop-blur border border-blue-200 hover:scale-[1.01] transition"
 					onClick={() => setActivePage("Stage")}
@@ -253,11 +240,9 @@ export default function ContractorDashboard({setActivePage}) {
 					</CardHeader>
 					<CardContent>
 						<p className="text-2xl font-stretch-normal text-blue-700">View</p>
-
 					</CardContent>
 				</Card>
 
-				{/* ✅ DRAWINGS CARD */}
 				<Card
 					className="shadow-md hover:shadow-2xl cursor-pointer bg-white/80 backdrop-blur border border-orange-200 hover:scale-[1.01] transition"
 					onClick={() => setActivePage("Drawing")}
@@ -283,7 +268,6 @@ export default function ContractorDashboard({setActivePage}) {
 				</Card>
 			</div>
 
-			{/* PROJECT TABLE remains unchanged */}
 			{selectedView === "projects" && (
 				<Card className="shadow-xl p-6 bg-white/90 border backdrop-blur rounded-xl">
 					<h2 className="text-xl font-bold mb-3">Project Details</h2>
@@ -299,6 +283,7 @@ export default function ContractorDashboard({setActivePage}) {
 									<TableHeader className="bg-gray-100/70">
 										<TableRow>
 											<TableHead>Project</TableHead>
+											<TableHead>Project Type</TableHead>   {/* ✅ NEW COLUMN */}
 											<TableHead>Client</TableHead>
 											<TableHead>Cost</TableHead>
 											<TableHead className="text-center">Action</TableHead>
@@ -308,7 +293,7 @@ export default function ContractorDashboard({setActivePage}) {
 									<TableBody>
 										{paginatedData.length === 0 ? (
 											<TableRow>
-												<TableCell colSpan="4" className="text-center text-gray-500 py-6">
+												<TableCell colSpan="5" className="text-center text-gray-500 py-6">
 													No projects found
 												</TableCell>
 											</TableRow>
@@ -316,6 +301,10 @@ export default function ContractorDashboard({setActivePage}) {
 											paginatedData.map((p, i) => (
 												<TableRow key={i} className="hover:bg-gray-50 transition">
 													<TableCell>{p.title}</TableCell>
+													<TableCell>
+														{p.projectTypeName}
+													</TableCell>
+
 													<TableCell>{p.client?.name}</TableCell>
 													<TableCell>₹ {p.totalCost || "-"}</TableCell>
 
@@ -363,13 +352,18 @@ export default function ContractorDashboard({setActivePage}) {
 				</Card>
 			)}
 
-			{/* ✅ PROJECT DIALOG WITH TABS */}
+			{/* ✅ PROJECT DIALOG */}
 			{openProjectDialog && (
 				<Dialog open={true} onOpenChange={() => setOpenProjectDialog(null)}>
 					<DialogContent className="max-w-3xl rounded-2xl shadow-xl">
 						<DialogHeader>
-							<DialogTitle className="text-xl font-bold">
+							<DialogTitle className="text-xl font-bold flex items-center gap-2">
 								Project — {openProjectDialog.title}
+
+								{/* ✅ Project Type Badge */}
+								<Badge className="bg-indigo-100 text-indigo-700 text-xs px-2 py-1">
+									{openProjectDialog.projectTypeName}
+								</Badge>
 							</DialogTitle>
 						</DialogHeader>
 
@@ -379,7 +373,7 @@ export default function ContractorDashboard({setActivePage}) {
 								<TabsTrigger value="drawings">Drawings</TabsTrigger>
 							</TabsList>
 
-							{/* TAB — STAGES */}
+							{/* ✅ STAGES TAB (UNCHANGED) */}
 							<TabsContent value="stages">
 								<ScrollArea className="max-h-[55vh] pr-2 space-y-3 mt-2">
 									{openProjectDialog.projectStages.length > 0 ? (
@@ -422,7 +416,7 @@ export default function ContractorDashboard({setActivePage}) {
 								</ScrollArea>
 							</TabsContent>
 
-							{/* ✅ TAB — DRAWINGS */}
+							{/* ✅ DRAWINGS TAB (UNCHANGED) */}
 							<TabsContent value="drawings">
 								<ScrollArea className="max-h-[55vh] pr-2 space-y-3 mt-2">
 									{openProjectDialog.projectDrawings.length > 0 ? (
@@ -455,7 +449,7 @@ export default function ContractorDashboard({setActivePage}) {
 				</Dialog>
 			)}
 
-			{/* ✅ REMARK SHEET */}
+			{/* ✅ REMARK SHEET (UNCHANGED) */}
 			{selectedStageRemark && (
 				<Sheet open={true} onOpenChange={() => setSelectedStageRemark(null)}>
 					<SheetContent className="w-[420px] overflow-auto">
@@ -540,7 +534,7 @@ export default function ContractorDashboard({setActivePage}) {
 				</Sheet>
 			)}
 
-			{/* ✅ FILE PREVIEW WITH RELATED FILES AND DOWNLOAD */}
+			{/* ✅ FILE PREVIEW (UNCHANGED) */}
 			{previewFile && (
 				<Dialog open={true} onOpenChange={() => setPreviewFile(null)}>
 					<DialogContent className="max-w-screen flex flex-col">
@@ -569,7 +563,6 @@ export default function ContractorDashboard({setActivePage}) {
 							)}
 						</div>
 
-						{/* ✅ Related files */}
 						{projectDrawings.length > 1 && (
 							<div className="flex gap-3 mt-3 overflow-x-auto border-t pt-3">
 								{projectDrawings.map((pf) => (

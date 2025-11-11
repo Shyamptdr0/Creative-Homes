@@ -106,7 +106,7 @@ export default function AdminDashboard({ setActivePage }) {
 			fetch("/api/stages"),
 			fetch("/api/drawings"),
 			fetch("/api/clients"),
-			fetch("/api/contractors")
+			fetch("/api/contractors"),
 		]);
 
 		const projects = await projectsRes.json();
@@ -115,6 +115,7 @@ export default function AdminDashboard({ setActivePage }) {
 		const clients = await clientsRes.json();
 		const contractors = await contractorsRes.json();
 
+		// ✅ ADD PROJECT TYPE NAME EVERYWHERE
 		if (type === "projects") {
 			const mapped = projects.projects.map((project) => {
 				const projectStages = stages.stages.filter((s) => s.projectId === project.id);
@@ -122,7 +123,8 @@ export default function AdminDashboard({ setActivePage }) {
 				return {
 					...project,
 					projectStages,
-					projectDrawings
+					projectDrawings,
+					projectTypeName: project?.projectType?.name || "Unknown", // ✅ added
 				};
 			});
 			setTableData(mapped);
@@ -131,10 +133,13 @@ export default function AdminDashboard({ setActivePage }) {
 		if (type === "clients") {
 			const mapped = clients.clients.map((c) => {
 				const clientProjects = projects.projects.filter((p) => p.clientId === c.id);
+
 				return {
 					...c,
 					totalProjects: clientProjects.length,
-					projectNames: clientProjects.map((p) => p.title).join(", ") || "-"
+					projectNames: clientProjects
+						.map((p) => `${p.title} (${p.projectType?.name || "-"})`)
+						.join(", ") || "-",
 				};
 			});
 			setTableData(mapped);
@@ -143,10 +148,13 @@ export default function AdminDashboard({ setActivePage }) {
 		if (type === "contractors") {
 			const mapped = contractors.contractors.map((ct) => {
 				const contractorProjects = projects.projects.filter((p) => p.contractorId === ct.id);
+
 				return {
 					...ct,
 					totalProjects: contractorProjects.length,
-					projectNames: contractorProjects.map((p) => p.title).join(", ") || "-"
+					projectNames: contractorProjects
+						.map((p) => `${p.title} (${p.projectType?.name || "-"})`)
+						.join(", ") || "-",
 				};
 			});
 			setTableData(mapped);
@@ -203,7 +211,6 @@ export default function AdminDashboard({ setActivePage }) {
 
 	return (
 		<div className="min-h-screen bg-gray-50 px-6 py-8">
-
 			<div className="flex justify-between items-center mb-8">
 				<h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
 
@@ -218,7 +225,6 @@ export default function AdminDashboard({ setActivePage }) {
 			</div>
 
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-
 				<Card onClick={() => loadDetails("projects")} className="hover:shadow-xl cursor-pointer">
 					<CardHeader className="flex justify-between items-center">
 						<CardTitle>Projects</CardTitle>
@@ -261,7 +267,6 @@ export default function AdminDashboard({ setActivePage }) {
 						<p className="text-4xl font-extrabold text-teal-700">₹ {stats.payments}</p>
 					</CardContent>
 				</Card>
-
 			</div>
 
 			{selectedView && (
@@ -316,7 +321,12 @@ export default function AdminDashboard({ setActivePage }) {
 										<TableRow key={item.id}>
 											{selectedView === "projects" && (
 												<>
-													<TableCell>{item.title}</TableCell>
+													<TableCell>
+														{item.title}{" "}
+														<span className="text-xs text-gray-500">
+															({item.projectTypeName})
+														</span>
+													</TableCell>
 													<TableCell>{item.client?.name || "-"}</TableCell>
 													<TableCell>{item.contractor?.name || "-"}</TableCell>
 													<TableCell>₹ {item.totalCost || "-"}</TableCell>
@@ -376,6 +386,10 @@ export default function AdminDashboard({ setActivePage }) {
 							<DialogTitle className="text-xl font-bold">
 								Project — {openProjectDialog.title}
 							</DialogTitle>
+
+							<p className="text-sm text-gray-600">
+								Project Type: {openProjectDialog.projectTypeName || openProjectDialog.projectType?.name || "Unknown"}
+							</p>
 						</DialogHeader>
 
 						<Tabs defaultValue="stages" className="mt-2">
@@ -384,7 +398,6 @@ export default function AdminDashboard({ setActivePage }) {
 								<TabsTrigger value="drawings">Drawings</TabsTrigger>
 							</TabsList>
 
-							{/* ✅ STAGES TAB (unchanged) */}
 							<TabsContent value="stages">
 								<ScrollArea className="max-h-[60vh] pr-2">
 									{openProjectDialog.projectStages.length > 0 ? (
@@ -416,7 +429,6 @@ export default function AdminDashboard({ setActivePage }) {
 								</ScrollArea>
 							</TabsContent>
 
-							{/* ✅ DRAWINGS TAB (UPDATED) */}
 							<TabsContent value="drawings">
 								<ScrollArea className="max-h-[60vh] pr-2">
 									{openProjectDialog.projectDrawings.length > 0 ? (
@@ -449,24 +461,17 @@ export default function AdminDashboard({ setActivePage }) {
 				</Dialog>
 			)}
 
-			{/* ✅ DRAWING PREVIEW MODAL (UPDATED WITHOUT REMOVING ANYTHING) */}
 			{previewFile && (
 				<Dialog open={true} onOpenChange={() => setPreviewFile(null)}>
 					<DialogContent className="max-w-4xl h-auto flex flex-col">
 						<DialogHeader>
 							<DialogTitle>Preview File</DialogTitle>
-
-							<p className="text-sm text-gray-600">
-								{selectedDrawing?.title}
-							</p>
+							<p className="text-sm text-gray-600">{selectedDrawing?.title}</p>
 						</DialogHeader>
 
 						<div className="flex-1 overflow-auto bg-gray-100 rounded p-1">
 							{previewFile.endsWith(".pdf") ? (
-								<iframe
-									src={previewFile}
-									className="w-full h-full rounded"
-								/>
+								<iframe src={previewFile} className="w-full h-full rounded" />
 							) : (
 								<img
 									src={previewFile}
@@ -486,10 +491,7 @@ export default function AdminDashboard({ setActivePage }) {
 											previewFile === pf.fileUrl ? "border-blue-500" : "border-gray-300"
 										}`}
 									>
-										<img
-											src={pf.fileUrl}
-											className="w-20 h-20 object-cover rounded"
-										/>
+										<img src={pf.fileUrl} className="w-20 h-20 object-cover rounded" />
 									</div>
 								))}
 							</div>
@@ -510,7 +512,6 @@ export default function AdminDashboard({ setActivePage }) {
 						</SheetHeader>
 
 						<div className="mt-4 space-y-4 px-2">
-
 							{remarkSheetStage.remarks?.length > 0 ? (
 								remarkSheetStage.remarks.map((r) => (
 									<div
@@ -523,9 +524,7 @@ export default function AdminDashboard({ setActivePage }) {
 									>
 										<b className="text-xs">{r.by === "admin" ? "Admin" : "Contractor"}</b>
 										<p className="mt-1">{r.message}</p>
-										<p className="text-[10px] opacity-50 mt-1">
-											{formatDate(r.createdAt)}
-										</p>
+										<p className="text-[10px] opacity-50 mt-1">{formatDate(r.createdAt)}</p>
 									</div>
 								))
 							) : (
@@ -542,11 +541,7 @@ export default function AdminDashboard({ setActivePage }) {
 							/>
 
 							<SheetFooter>
-								<Button
-									className="w-full"
-									disabled={remarkLoading}
-									onClick={sendRemark}
-								>
+								<Button className="w-full" disabled={remarkLoading} onClick={sendRemark}>
 									{remarkLoading ? <Loader2 className="animate-spin h-4 w-4" /> : "Send"}
 								</Button>
 							</SheetFooter>
@@ -554,7 +549,6 @@ export default function AdminDashboard({ setActivePage }) {
 					</SheetContent>
 				</Sheet>
 			)}
-
 		</div>
 	);
 }

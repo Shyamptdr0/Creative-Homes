@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { Loader2, BadgeAlert } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function ContractorProjectsPage() {
 	const [projects, setProjects] = useState([]);
+	const [projectTypes, setProjectTypes] = useState([]);
 	const [loading, setLoading] = useState(true);
 
 	async function fetchProjects() {
@@ -17,20 +19,29 @@ export default function ContractorProjectsPage() {
 				return;
 			}
 
+			// ✅ fetch project list
 			const res = await fetch("/api/contractors/projects", {
 				headers: { Authorization: `Bearer ${token}` },
 				cache: "no-store",
 			});
-
 			const data = await res.json();
 			console.log("Contractor Projects =>", data);
+
+			// ✅ fetch project types
+			const typeRes = await fetch("/api/project-types");
+			const typeData = await typeRes.json();
+			const types = typeData.types || [];
 
 			if (!data.success) return;
 
 			const ordered = (data.projects || [])
 				.sort((a, b) => a.id - b.id)
-				.map((p, i) => ({ ...p, serial: i + 1 }));
+				.map((p, i) => {
+					const typeName = types.find((t) => t.id === p.projectTypeId)?.name || "N/A";
+					return { ...p, serial: i + 1, typeName };
+				});
 
+			setProjectTypes(types);
 			setProjects(ordered);
 		} catch (error) {
 			console.error("Error fetching projects:", error);
@@ -53,6 +64,7 @@ export default function ContractorProjectsPage() {
 						<TableRow className="bg-gray-100">
 							<TableHead>#</TableHead>
 							<TableHead>Title</TableHead>
+							<TableHead>Project Type</TableHead> {/* ✅ New column */}
 							<TableHead>Client</TableHead>
 							<TableHead>Status</TableHead>
 							<TableHead>Start Date</TableHead>
@@ -63,7 +75,7 @@ export default function ContractorProjectsPage() {
 					<TableBody>
 						{loading ? (
 							<TableRow>
-								<TableCell colSpan="6" className="text-center py-6">
+								<TableCell colSpan="7" className="text-center py-6">
 									<div className="flex items-center justify-center gap-2 text-gray-600">
 										<Loader2 className="animate-spin h-5 w-5" />
 										<span>Loading projects...</span>
@@ -75,18 +87,28 @@ export default function ContractorProjectsPage() {
 								<TableRow key={p.id}>
 									<TableCell>{p.serial}</TableCell>
 									<TableCell className="font-medium">{p.title}</TableCell>
+
+
+									<TableCell>
+											{p.typeName}
+									</TableCell>
+
 									<TableCell>
 										{p.client ? `${p.client.clientId} — ${p.client.name}` : "N/A"}
 									</TableCell>
 
 									<TableCell className="capitalize">{p.status}</TableCell>
-									<TableCell>{p.startDate ? new Date(p.startDate).toLocaleDateString() : "-"}</TableCell>
-									<TableCell>{p.endDate ? new Date(p.endDate).toLocaleDateString() : "-"}</TableCell>
+									<TableCell>
+										{p.startDate ? new Date(p.startDate).toLocaleDateString() : "-"}
+									</TableCell>
+									<TableCell>
+										{p.endDate ? new Date(p.endDate).toLocaleDateString() : "-"}
+									</TableCell>
 								</TableRow>
 							))
 						) : (
 							<TableRow>
-								<TableCell colSpan="6" className="text-center py-6 text-gray-500 italic">
+								<TableCell colSpan="7" className="text-center py-6 text-gray-500 italic">
 									No assigned projects found
 								</TableCell>
 							</TableRow>
