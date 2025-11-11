@@ -8,20 +8,15 @@ const Stage = sequelize.define("Stage", {
 	name: { type: DataTypes.STRING, allowNull: false },
 	description: { type: DataTypes.TEXT },
 
-	startDate: { type: DataTypes.DATE, allowNull: true },
-	endDate: { type: DataTypes.DATE, allowNull: true },
+	remark: { type: DataTypes.TEXT, defaultValue: "" },
+	adminRemark: { type: DataTypes.TEXT, defaultValue: "" },
 
-	progress: { type: DataTypes.FLOAT, defaultValue: 0 }, // 0 - 100
-
-	images: {
-		type: DataTypes.JSON, // store array of image URLs
-		defaultValue: [],
-	},
+	isCompleted: { type: DataTypes.BOOLEAN, defaultValue: false },
+	isApproved: { type: DataTypes.BOOLEAN, defaultValue: false },
 
 	projectId: { type: DataTypes.INTEGER, allowNull: false },
-}, { tableName: "stages" });
+});
 
-// Relationships
 Stage.belongsTo(Project, { foreignKey: "projectId", as: "project" });
 Project.hasMany(Stage, { foreignKey: "projectId", as: "stages" });
 

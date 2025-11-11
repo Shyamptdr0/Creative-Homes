@@ -17,12 +17,13 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Loader2 } from "lucide-react"; // ✅
+import { Loader2 } from "lucide-react";
 import ProjectForm from "@/components/ProjectForm";
+import ProjectTypesPage from "@/components/ProjectType"; // ✅ use component
 
 export default function ProjectsPage() {
 	const [projects, setProjects] = useState([]);
-	const [loading, setLoading] = useState(true); // ✅ table loading state
+	const [loading, setLoading] = useState(true);
 	const [editing, setEditing] = useState(null);
 	const [editOpen, setEditOpen] = useState(false);
 	const [createOpen, setCreateOpen] = useState(false);
@@ -30,7 +31,7 @@ export default function ProjectsPage() {
 	// ✅ Fetch Projects
 	async function fetchProjects() {
 		try {
-			setLoading(true); // ✅ start loader
+			setLoading(true);
 			const res = await fetch("/api/projects");
 			const data = await res.json();
 
@@ -42,7 +43,7 @@ export default function ProjectsPage() {
 		} catch (e) {
 			console.log(e);
 		} finally {
-			setLoading(false); // ✅ stop loader
+			setLoading(false);
 		}
 	}
 
@@ -96,6 +97,10 @@ export default function ProjectsPage() {
 
 	return (
 		<div className="container mx-auto grid grid-cols-1 gap-8 py-8">
+
+			{/* ✅ Display project types on top */}
+			<ProjectTypesPage />
+
 			<div className="flex justify-between items-center">
 				<h1 className="text-2xl font-semibold">Project Management</h1>
 
@@ -127,6 +132,7 @@ export default function ProjectsPage() {
 							<TableHead>Title</TableHead>
 							<TableHead>Client</TableHead>
 							<TableHead>Contractor</TableHead>
+							<TableHead>Type</TableHead>
 							<TableHead>Status</TableHead>
 							<TableHead>Start</TableHead>
 							<TableHead>End</TableHead>
@@ -136,10 +142,9 @@ export default function ProjectsPage() {
 					</TableHeader>
 
 					<TableBody>
-						{/* ✅ Show Loader */}
 						{loading ? (
 							<TableRow>
-								<TableCell colSpan={9} className="text-center py-8">
+								<TableCell colSpan={10} className="text-center py-8">
 									<div className="flex items-center justify-center gap-2">
 										<Loader2 className="animate-spin w-6 h-6" />
 										<span>Loading projects...</span>
@@ -147,9 +152,8 @@ export default function ProjectsPage() {
 								</TableCell>
 							</TableRow>
 						) : projects.length === 0 ? (
-							/* ✅ Show Empty */
 							<TableRow>
-								<TableCell colSpan={9} className="text-center py-6 text-gray-500">
+								<TableCell colSpan={10} className="text-center py-6 text-gray-500">
 									No projects found
 								</TableCell>
 							</TableRow>
@@ -158,11 +162,23 @@ export default function ProjectsPage() {
 								<TableRow key={p.id}>
 									<TableCell className="text-center font-bold">{p.serial}</TableCell>
 									<TableCell>{p.title}</TableCell>
-									<TableCell>{p.client?.clientId} — {p.client?.name}</TableCell>
-									<TableCell>{p.contractor?.contractorId} — {p.contractor?.name}</TableCell>
+									<TableCell>
+										{p.client?.clientId} — {p.client?.name}
+									</TableCell>
+									<TableCell>
+										{p.contractor?.contractorId} — {p.contractor?.name}
+									</TableCell>
+
+									{/* ✅ Project Type Shown */}
+									<TableCell>{p.projectType?.name || "-"}</TableCell>
+
 									<TableCell className="capitalize">{p.status}</TableCell>
-									<TableCell>{p.startDate ? new Date(p.startDate).toLocaleDateString() : "-"}</TableCell>
-									<TableCell>{p.endDate ? new Date(p.endDate).toLocaleDateString() : "-"}</TableCell>
+									<TableCell>
+										{p.startDate ? new Date(p.startDate).toLocaleDateString() : "-"}
+									</TableCell>
+									<TableCell>
+										{p.endDate ? new Date(p.endDate).toLocaleDateString() : "-"}
+									</TableCell>
 									<TableCell>₹{p.totalCost}</TableCell>
 
 									<TableCell className="flex gap-2 justify-center">
@@ -206,10 +222,7 @@ export default function ProjectsPage() {
 					</DialogHeader>
 
 					{editing && (
-						<ProjectForm
-							initialData={editing}
-							onSubmit={handleUpdate}
-						/>
+						<ProjectForm initialData={editing} onSubmit={handleUpdate} />
 					)}
 				</DialogContent>
 			</Dialog>

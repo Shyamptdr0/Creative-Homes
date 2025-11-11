@@ -9,7 +9,7 @@ import {
 	PersonStanding,
 	CircleUser,
 	HousePlus,
-	ChartBarIncreasing, BrickWall
+	ChartBarIncreasing, BrickWall, PencilRuler
 } from "lucide-react";
 import SidebarPage from "@/components/SidebarPage";
 import {useRouter} from "next/navigation";
@@ -28,6 +28,7 @@ export default function ContractorSidebar() {
 	const menuItems = [
 		{title: "Home", icon: Home},
 		{title: "Project", icon: HousePlus},
+		{title: "Drawing", icon: PencilRuler},
 		{title: "Stage", icon: ChartBarIncreasing},
 		{title: "Material", icon: BrickWall},
 		{title: "Query", icon: MessageSquare},

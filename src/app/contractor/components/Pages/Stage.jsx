@@ -2,25 +2,42 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-	Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-	Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
+} from "@/components/ui/dialog";
+
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetFooter,
+} from "@/components/ui/sheet";
+
+import { Loader2, CheckSquare, MessageCircle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 export default function ContractorStages() {
 	const [stages, setStages] = useState([]);
 	const [editStage, setEditStage] = useState(null);
-	const [updatedProgress, setUpdatedProgress] = useState("");
 	const [loading, setLoading] = useState(false);
-	const [fetchLoading, setFetchLoading] = useState(true);
 
-	// ✅ Fetch all stages
+	const [fetchLoading, setFetchLoading] = useState(true);
+	const [remarkLoading, setRemarkLoading] = useState(false);
+
+	const [isCompleted, setIsCompleted] = useState(false);
+	const [remark, setRemark] = useState("");
+
+	const [remarkSheetStage, setRemarkSheetStage] = useState(null);
+	const [newRemark, setNewRemark] = useState("");
+
+	// ✅ Fetch stages + Normalize Data
 	const fetchStages = async () => {
 		try {
 			setFetchLoading(true);
@@ -31,9 +48,19 @@ export default function ContractorStages() {
 			});
 
 			const data = await res.json();
-			if (data.success) setStages(data.stages);
-		} catch {
-			console.log("Error fetching stages");
+
+			if (data.success) {
+				const normalized = data.stages.map((s) => ({
+					...s,
+					remarks: s.remarks || [],
+					project: s.project || {
+						id: `unknown-${Math.random()}`,
+						title: "Unknown Project",
+					},
+				}));
+
+				setStages(normalized);
+			}
 		} finally {
 			setFetchLoading(false);
 		}
@@ -43,193 +70,269 @@ export default function ContractorStages() {
 		fetchStages();
 	}, []);
 
-	// ✅ Update progress function
-	const handleProgressUpdate = async (e) => {
-		e.preventDefault();
+	// ✅ Save Completed Update
+	const saveChanges = async () => {
 		setLoading(true);
-
 		const token = sessionStorage.getItem("token");
 
-		const res = await fetch(`/api/stages/${editStage?.id}`, {
+		await fetch(`/api/stages/${editStage.id}`, {
 			method: "PUT",
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
 			},
-			body: JSON.stringify({ progress: updatedProgress }),
+			body: JSON.stringify({
+				isCompleted,
+				remark: remark || (isCompleted ? "Stage completed ✅" : ""),
+				by: "contractor",
+			}),
 		});
 
-		const data = await res.json();
-		if (data.success) {
-			setEditStage(null);
-			setUpdatedProgress("");
-			fetchStages();
-		}
+		setEditStage(null);
+		setRemark("");
+		setIsCompleted(false);
 
+		await fetchStages();
 		setLoading(false);
 	};
 
-	// ✅ Progress color function
-	const getProgressColor = (value) => {
-		if (value <= 30) return "bg-red-500 text-white";
-		if (value <= 60) return "bg-orange-500 text-white";
-		if (value <= 90) return "bg-blue-500 text-white";
-		return "bg-green-600 text-white";
+	// ✅ Send remark instantly update UI
+	const submitRemark = async () => {
+		if (!newRemark.trim()) return alert("Enter remark");
+		setRemarkLoading(true);
+
+		const token = sessionStorage.getItem("token");
+
+		await fetch(`/api/stages/${remarkSheetStage.id}`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify({
+				remark: newRemark,
+				by: "contractor",
+			}),
+		});
+
+		setRemarkSheetStage((prev) => ({
+			...prev,
+			remarks: [
+				...prev.remarks,
+				{
+					id: Math.random(),
+					by: "contractor",
+					message: newRemark,
+					createdAt: new Date(),
+				},
+			],
+		}));
+
+		setNewRemark("");
+		setRemarkLoading(false);
 	};
 
-	// ✅ Group stages by project
-	const projects = stages.reduce((acc, stage) => {
-		const pid = stage.project?.id ?? "no-project";
-		if (!acc[pid]) acc[pid] = { project: stage.project, stages: [] };
-		acc[pid].stages.push(stage);
+	// ✅ Group by project
+	const grouped = stages.reduce((acc, s) => {
+		const pid = s.project.id;
+		if (!acc[pid]) acc[pid] = { project: s.project, stages: [] };
+		acc[pid].stages.push(s);
 		return acc;
 	}, {});
 
-	return (
-		<div className="container mx-auto grid grid-cols-1 gap-8 py-8">
-			<h1 className="text-2xl font-bold">Stage Progress</h1>
+	const formatDate = (d) =>
+		new Date(d).toLocaleString("en-IN", {
+			day: "2-digit",
+			month: "short",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+		});
 
-			{/* ✅ Loading Skeleton */}
-			{fetchLoading && (
-				<div className="space-y-4 animate-pulse">
-					<div className="h-6 bg-gray-200 rounded w-48"></div>
-					<div className="h-40 bg-gray-200 rounded"></div>
-					<div className="h-40 bg-gray-200 rounded"></div>
+	const statusBadge = (s) =>
+		s.isCompleted ? (
+			<Badge className="bg-green-600 text-white px-3 py-1">✅ Completed</Badge>
+		) : (
+			<Badge className="bg-gray-700 text-white px-3 py-1">Not Completed</Badge>
+		);
+
+	return (
+		<div className="container mx-auto py-6 space-y-6">
+			<h1 className="text-3xl font-bold">Stages</h1>
+
+			{/* ✅ Full Page Loader */}
+			{fetchLoading && stages.length === 0 && (
+				<div className="flex justify-center py-20">
+					<div className="flex items-center gap-3 text-lg  p-4 ">
+						<Loader2 className="w-6 h-6 animate-spin text-gray-600" />
+						Loading...
+					</div>
 				</div>
 			)}
 
-			{/* ✅ No stages */}
-			{!fetchLoading && Object.values(projects).length === 0 && (
-				<p className="text-center text-sm text-gray-500">No stages found</p>
-			)}
-
-			{/* ✅ Projects */}
+			{/* ✅ Stages List */}
 			{!fetchLoading &&
-				Object.values(projects).map(({ project, stages }, i) => {
-					if (!project) return null;
-
-					return (
-						<div key={project.id || i} className="border rounded-lg bg-white shadow p-4 mb-8">
-							<h2 className="text-lg font-semibold mb-3">
-								🏗️ {project.title}
+				Object.values(grouped).map(({ project, stages }) => (
+					<div
+						key={project.id}
+						className="shadow-sm border bg-white rounded-xl overflow-hidden"
+					>
+						<div className="border-b bg-gray-50 px-5 py-3">
+							<h2 className="text-xl font-bold text-gray-800">
+								Project Name - {project.title}
 							</h2>
+						</div>
 
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Stage</TableHead>
-										<TableHead>Timeline</TableHead>
-										<TableHead>Description</TableHead>
-										<TableHead>Progress</TableHead>
-										<TableHead className="text-right">Action</TableHead>
-									</TableRow>
-								</TableHeader>
+						{/* ✅ TABLE AREA LOADING */}
+						{fetchLoading ? (
+							<div className="flex justify-center py-10">
+								<Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+							</div>
+						) : stages.length === 0 ? (
+							<div className="p-5 text-center text-gray-500">
+								No stages found
+							</div>
+						) : (
+							<div className="space-y-4 p-4">
+								{stages.map((s) => (
+									<div
+										key={s.id}
+										className="border rounded-lg p-4 bg-gray-50 hover:bg-white transition shadow-sm"
+									>
+										<div className="flex justify-between items-start">
+											<div>
+												<p className="font-semibold text-lg text-gray-800">
+													{s.name}
+												</p>
+												<p className="text-sm text-gray-600">{s.description}</p>
+											</div>
 
-								<TableBody>
-									{stages.map((stage) => (
-										<TableRow key={stage.id}>
-											<TableCell className="font-medium">{stage.name}</TableCell>
-
-											<TableCell className="text-sm">
-												{stage.startDate?.slice(0, 10) || "--"} → {stage.endDate?.slice(0, 10) || "--"}
-											</TableCell>
-
-											<TableCell className="max-w-[250px]">
-												<Textarea value={stage.description} disabled rows={2} />
-											</TableCell>
-
-											<TableCell className="min-w-[150px]">
-												<div className="flex items-center justify-between mb-1">
-													<span className="text-sm font-medium">{stage.progress}%</span>
-													<Badge className={`text-xs px-2 py-1 rounded-full ${getProgressColor(stage.progress ?? 0)}`}>
-														{stage.progress <= 30 ? "Starting" : stage.progress <= 60 ? "In Progress" : stage.progress <= 90 ? "Near Done" : "Completed"}
-													</Badge>
-												</div>
-
-												<div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
-													<div
-														className={`h-3 rounded-full transition-all duration-700 ease-out ${getProgressColor(stage.progress ?? 0)}`}
-														style={{ width: `${stage.progress}%` }}
-													></div>
-												</div>
-											</TableCell>
-
-											<TableCell className="text-right">
+											<div className="flex justify-end gap-2 mt-3">
+												{statusBadge(s)}
 												<Button
 													size="sm"
-													onClick={() => {
-														setEditStage(stage);
-														setUpdatedProgress(stage.progress ?? 0);
-													}}
-													disabled={loading}
+													variant="outline"
+													className="flex items-center gap-1"
+													onClick={() => setRemarkSheetStage(s)}
 												>
+													<MessageCircle className="w-4 h-4" />
+													Remarks ({s.remarks?.length || 0})
+												</Button>
+
+												<Button
+													size="sm"
+													className="flex items-center gap-1"
+													onClick={() => {
+														setEditStage(s);
+														setIsCompleted(s.isCompleted ?? false);
+														setRemark("");
+													}}
+												>
+													<CheckSquare className="w-4 h-4" />
 													Update
 												</Button>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
-					);
-				})}
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+				))}
 
-			{/* ✅ Update Progress Dialog */}
+			{/* ✅ Update Popup */}
 			{editStage && (
 				<Dialog open={true} onOpenChange={() => setEditStage(null)}>
-					<DialogContent>
+					<DialogContent className="space-y-3">
 						<DialogHeader>
-							<DialogTitle>Update Stage Progress</DialogTitle>
+							<DialogTitle className="font-semibold">Update Stage</DialogTitle>
 						</DialogHeader>
 
-						<form onSubmit={handleProgressUpdate} className="space-y-4">
-							<p className="font-medium">{editStage.name}</p>
+						<p className="font-semibold text-lg">{editStage.name}</p>
 
-							<label className="text-sm font-medium">Adjust Progress</label>
+						<label className="flex items-center gap-2 text-sm font-medium">
 							<input
-								type="range"
-								min="0"
-								max="100"
-								value={updatedProgress}
-								onChange={(e) => setUpdatedProgress(Number(e.target.value))}
-								className="w-full cursor-pointer accent-blue-600"
+								type="checkbox"
+								checked={isCompleted}
+								onChange={(e) => setIsCompleted(e.target.checked)}
 							/>
+							Mark as Completed ✅
+						</label>
 
-							<div className="flex justify-between text-sm">
-								<span>0%</span>
-								<span>{updatedProgress}%</span>
-								<span>100%</span>
-							</div>
-
-							<div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
-								<div
-									className={`h-3 rounded-full transition-all duration-700 ease-out ${getProgressColor(updatedProgress)}`}
-									style={{ width: `${updatedProgress}%` }}
-								></div>
-							</div>
-
-							<div className="flex justify-between items-center mt-2">
-								<p className="text-sm text-gray-600">Selected Progress:</p>
-								<Badge className={getProgressColor(updatedProgress)}>
-									{updatedProgress}%
-								</Badge>
-							</div>
-
-							<DialogFooter>
-								<Button type="submit" disabled={loading}>
-									{loading ? (
-										<div className="flex items-center gap-2">
-											<Loader2 className="h-4 w-4 animate-spin" />
-											Saving...
-										</div>
-									) : (
-										"Save"
-									)}
-								</Button>
-							</DialogFooter>
-						</form>
+						<DialogFooter>
+							<Button onClick={saveChanges} disabled={loading}>
+								{loading ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : (
+									"Save"
+								)}
+							</Button>
+						</DialogFooter>
 					</DialogContent>
 				</Dialog>
+			)}
+
+			{/* ✅ Remark Sheet */}
+			{remarkSheetStage && (
+				<Sheet open={true} onOpenChange={() => setRemarkSheetStage(null)}>
+					<SheetContent className="w-[420px] overflow-auto">
+						<SheetHeader>
+							<SheetTitle className="font-semibold text-lg">
+								Conversation — {remarkSheetStage.name}
+							</SheetTitle>
+						</SheetHeader>
+
+						<div className="mt-4 space-y-4 px-2">
+							{remarkSheetStage.remarks?.length > 0 ? (
+								<div className="space-y-3">
+									{remarkSheetStage.remarks.map((r) => (
+										<div
+											key={r.id}
+											className={`p-3 rounded-lg shadow-sm text-sm max-w-[88%] ${
+												r.by === "admin"
+													? "bg-red-100 border border-red-300 ml-auto"
+													: "bg-blue-100 border border-blue-300"
+											}`}
+										>
+											<b className="text-xs">
+												{r.by === "admin" ? "Admin" : "You"}
+											</b>
+											<p className="mt-1">{r.message}</p>
+											<p className="text-[10px] opacity-60 mt-1">
+												{formatDate(r.createdAt)}
+											</p>
+										</div>
+									))}
+								</div>
+							) : (
+								<p className="text-sm text-gray-500">No remarks yet</p>
+							)}
+
+							<Separator className="my-3" />
+
+							<Textarea
+								placeholder="Write your message..."
+								value={newRemark}
+								onChange={(e) => setNewRemark(e.target.value)}
+								className="h-24"
+							/>
+
+							<SheetFooter>
+								<Button
+									onClick={submitRemark}
+									disabled={remarkLoading}
+									className="w-full"
+								>
+									{remarkLoading ? (
+										<Loader2 className="w-4 h-4 animate-spin" />
+									) : (
+										"Send"
+									)}
+								</Button>
+							</SheetFooter>
+						</div>
+					</SheetContent>
+				</Sheet>
 			)}
 		</div>
 	);

@@ -4,13 +4,15 @@ import dotenv from "dotenv";
 
 // ✅ Import models so Sequelize creates tables
 import User from "../models/User.js";
-import Client from "../models/Client.js";
-import Contractor from "../models/Contractor.js";
-import Project from "../models/Project.js";
-import Stage from "../models/Stage.js";
-import Material from "../models/Material.js";
-import Drawing from "../models/Drawing.js"
-import Query from "../models/Query.js"
+import "../models/Client.js";
+import "../models/Contractor.js";
+import "../models/ProjectType.js";
+import "../models/Project.js";
+import "../models/Material.js";
+import "../models/Drawing.js";
+import "../models/Query.js";
+import "../models/Stage.js";
+import "../models/StageRemark.js";
 
 dotenv.config();
 

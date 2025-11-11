@@ -1,295 +1,362 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
-	Select, SelectTrigger, SelectContent, SelectItem, SelectValue
-} from "@/components/ui/select";
-import {
-	Dialog, DialogContent, DialogHeader, DialogTitle,
-	DialogFooter, DialogTrigger
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
 } from "@/components/ui/dialog";
+
 import {
-	Table, TableBody, TableCell, TableHead,
-	TableHeader, TableRow
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetFooter,
+} from "@/components/ui/sheet";
+
+import {
+	Table,
+	TableHeader,
+	TableRow,
+	TableHead,
+	TableBody,
+	TableCell,
 } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import { Loader2 } from "lucide-react";
 
-export default function StagePage() {
-	const [projects, setProjects] = useState([]);
+import {
+	Select,
+	SelectTrigger,
+	SelectContent,
+	SelectItem,
+	SelectValue,
+} from "@/components/ui/select";
+
+import { Separator } from "@/components/ui/separator";
+import { Loader2, Pencil, Trash2, MessageCircle, PlusCircle } from "lucide-react";
+
+export default function StagesPage() {
 	const [stages, setStages] = useState([]);
+	const [projects, setProjects] = useState([]);
 
-	const [openCreate, setOpenCreate] = useState(false);
-	const [editStage, setEditStage] = useState(null);
+	const [addDialogOpen, setAddDialogOpen] = useState(false);
 	const [loading, setLoading] = useState(false);
-	const [createLoading, setCreateLoading] = useState(false);
-	const [editLoading, setEditLoading] = useState(false);
 
-	const [form, setForm] = useState({
-		projectId: "",
-		name: "",
-		description: "",
-		startDate: "",
-		endDate: "",
-	});
+	const [name, setName] = useState("");
+	const [description, setDescription] = useState("");
+	const [projectId, setProjectId] = useState("");
 
-	const fetchProjects = async () => {
-		const res = await fetch("/api/projects");
-		const data = await res.json();
-		if (data.success) setProjects(data.projects);
-	};
+	const [editingId, setEditingId] = useState(null);
 
-	const fetchStages = async () => {
-		setLoading(true);
-		const res = await fetch(`/api/stages/all`);
-		const data = await res.json();
-		if (data.success) {
-			// 🔥 Sort stages by start date (ascending)
-			const sorted = data.stages.sort(
-				(a, b) => new Date(a.startDate) - new Date(b.startDate)
-			);
-			setStages(sorted);
-		}
-		setLoading(false);
+	const [remarkSheetStage, setRemarkSheetStage] = useState(null);
+	const [newRemark, setNewRemark] = useState("");
+
+	const [fetchLoading, setFetchLoading] = useState(true);
+	const [remarkLoading, setRemarkLoading] = useState(false);
+
+	const fetchData = async () => {
+		setFetchLoading(true);
+
+		const st = await fetch("/api/stages").then((r) => r.json());
+		setStages(st.stages || []);
+
+		const pr = await fetch("/api/projects").then((r) => r.json());
+		setProjects(pr.projects || []);
+
+		setFetchLoading(false);
 	};
 
 	useEffect(() => {
-		fetchProjects();
-		fetchStages();
+		fetchData();
 	}, []);
 
-	// ✅ Create Stage
-	const handleSubmit = async (e) => {
-		e.preventDefault();
-		setCreateLoading(true);
+	const resetForm = () => {
+		setEditingId(null);
+		setName("");
+		setDescription("");
+		setProjectId("");
+	};
 
-		const res = await fetch("/api/stages/create", {
+	const addStage = async () => {
+		if (!name || !projectId) return alert("Enter name & select project");
+		setLoading(true);
+
+		await fetch("/api/stages", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(form),
+			body: JSON.stringify({ name, description, projectId }),
 		});
 
-		const data = await res.json();
-		if (data.success) {
-			setForm({ projectId: "", name: "", description: "", startDate: "", endDate: "" });
-			setOpenCreate(false);
-			fetchStages();
-		}
-		setCreateLoading(false);
+		setLoading(false);
+		resetForm();
+		setAddDialogOpen(false);
+		fetchData();
 	};
 
-	// ✅ Delete Stage
-	const handleDelete = async (id) => {
-		if (!confirm("Are you sure?")) return;
-		await fetch(`/api/stages/${id}`, { method: "DELETE" });
-		setStages(stages.filter((s) => s.id !== id));
-	};
+	const updateStage = async (id) => {
+		setLoading(true);
 
-	// ✅ Edit Stage
-	const handleEditSubmit = async (e) => {
-		e.preventDefault();
-		setEditLoading(true);
-
-		await fetch(`/api/stages/${editStage.id}`, {
+		await fetch(`/api/stages/${id}`, {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(editStage),
+			body: JSON.stringify({ name, description, projectId }),
 		});
 
-		setEditLoading(false);
-		setEditStage(null);
-		fetchStages();
+		setLoading(false);
+		resetForm();
+		setAddDialogOpen(false);
+		fetchData();
 	};
 
-	const progressColor = (value) => {
-		if (value <= 30) return "bg-red-500";
-		if (value <= 70) return "bg-yellow-500";
-		return "bg-green-600";
+	const deleteStage = async (id) => {
+		if (!confirm("Delete stage?")) return;
+		await fetch(`/api/stages/${id}`, { method: "DELETE" });
+		fetchData();
 	};
 
-	const projectsWithStages = projects.filter((p) =>
-		stages.some((s) => s.projectId === p.id)
-	);
+	// ✅ Add remark & update instantly
+	const submitRemark = async () => {
+		if (!newRemark.trim()) return alert("Enter remark");
+		setRemarkLoading(true);
 
-	const formatDate = (dateStr) => {
-		if (!dateStr) return "";
-		const date = new Date(dateStr);
+		await fetch(`/api/stages/${remarkSheetStage.id}`, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				remark: newRemark,
+				by: "admin",
+				isCompleted: remarkSheetStage.isCompleted,
+			}),
+		});
 
-		const day = date.getDate();
-		const month = date.toLocaleString("en-US", { month: "short" }); // Nov
-		const year = date.getFullYear();
+		// ✅Instant update inside sheet
+		setRemarkSheetStage((prev) => ({
+			...prev,
+			remarks: [
+				...prev.remarks,
+				{
+					id: Math.random(),
+					by: "admin",
+					message: newRemark,
+					createdAt: new Date(),
+				},
+			],
+		}));
 
-		return `${day} - ${month} - ${year}`;
+		setNewRemark("");
+		setRemarkLoading(false);
 	};
+
+	const statusBadge = (s) =>
+		s.isCompleted ? (
+			<Badge className="bg-green-600 text-white">✅ Completed</Badge>
+		) : (
+			<Badge className="bg-gray-600 text-white">Not Completed</Badge>
+		);
+
+	const formatDate = (d) =>
+		new Date(d).toLocaleString("en-IN", {
+			day: "2-digit",
+			month: "short",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+
+	// ✅ Group stages
+	const grouped = stages.reduce((acc, s) => {
+		const key = s.project?.title || "Unknown Project";
+		if (!acc[key]) acc[key] = [];
+		acc[key].push(s);
+		return acc;
+	}, {});
 
 	return (
-		<div className="container mx-auto grid grid-cols-1 gap-8 py-8">
+		<div className="p-6 space-y-6">
 			<div className="flex justify-between items-center">
-				<h1 className="text-2xl font-bold">Admin — Manage Stages</h1>
-
-				<Dialog open={openCreate} onOpenChange={setOpenCreate}>
-					<DialogTrigger asChild>
-						<Button>Add Stage</Button>
-					</DialogTrigger>
-
-					<DialogContent className="space-y-4">
-						<DialogHeader>
-							<DialogTitle>Create Stage</DialogTitle>
-						</DialogHeader>
-
-						<form onSubmit={handleSubmit} className="space-y-4">
-							<div>
-								<Label>Select Project</Label>
-								<Select
-									value={form.projectId}
-									onValueChange={(v) => setForm({ ...form, projectId: v })}
-								>
-									<SelectTrigger>
-										<SelectValue placeholder="Choose Project" />
-									</SelectTrigger>
-									<SelectContent>
-										{projects.map((p) => (
-											<SelectItem key={p.id} value={p.id.toString()}>
-												{p.title}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div>
-								<Label>Stage Name</Label>
-								<Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-							</div>
-
-							<div>
-								<Label>Description</Label>
-								<Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-							</div>
-
-							<div className="grid grid-cols-2 gap-3">
-								<div>
-									<Label>Start Date</Label>
-									<Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
-								</div>
-								<div>
-									<Label>End Date</Label>
-									<Input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
-								</div>
-							</div>
-
-							<DialogFooter>
-								<Button disabled={createLoading} type="submit">
-									{createLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Create Stage
-								</Button>
-							</DialogFooter>
-						</form>
-					</DialogContent>
-				</Dialog>
+				<h1 className="text-2xl font-bold tracking-tight">Project Stages (Admin)</h1>
+				<Button className="flex items-center gap-2" onClick={() => setAddDialogOpen(true)}>
+					<PlusCircle className="w-4 h-4" /> Add Stage
+				</Button>
 			</div>
 
-			{/* ✅ Table */}
-			<div className="border rounded-lg bg-white shadow">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Project</TableHead>
-							<TableHead>Stage</TableHead>
-							<TableHead>Progress</TableHead>
-							<TableHead>Dates</TableHead>
-							<TableHead>Actions</TableHead>
-						</TableRow>
-					</TableHeader>
+			<Card className="border bg-white shadow-md rounded-xl">
+				<CardHeader>
+					<CardTitle className="font-semibold">All Stages (Grouped by Project)</CardTitle>
+				</CardHeader>
 
-					<TableBody>
-						{loading ? (
+				<CardContent className="overflow-auto max-h-[70vh] rounded-lg">
+					<Table className="border border-gray-200 rounded-lg text-sm">
+						<TableHeader className="bg-gray-100 sticky top-0 z-10 shadow-sm">
 							<TableRow>
-								<TableCell colSpan={5} className="py-6 text-center">
-									<Loader2 className="animate-spin inline-block mr-2" /> Loading stages...
-								</TableCell>
+								<TableHead>#</TableHead>
+								<TableHead>Stage Name</TableHead>
+								<TableHead>Description</TableHead>
+								<TableHead>Status</TableHead>
+								<TableHead className="text-center">Remarks</TableHead>
+								<TableHead className="text-center">Actions</TableHead>
 							</TableRow>
-						) : projectsWithStages.length === 0 ? (
-							<TableRow>
-								<TableCell colSpan={5} className="py-6 text-center text-gray-500">
-									No stage data found
-								</TableCell>
-							</TableRow>
-						) : (
-							projectsWithStages.map((project) => {
-								const projectStages = stages.filter((s) => s.projectId === project.id);
-								return (
-									<React.Fragment key={project.id}>
-										<TableRow className="bg-gray-100 font-semibold">
-											<TableCell colSpan={5}>{project.title}</TableCell>
+						</TableHeader>
+
+						<TableBody>
+							{/* ✅ Loader in table */}
+							{fetchLoading && (
+								<TableRow>
+									<TableCell colSpan={6} className="py-6 text-center text-gray-500">
+										<Loader2 className="w-5 h-5 animate-spin inline-block mr-2" />
+										Loading stages...
+									</TableCell>
+								</TableRow>
+							)}
+
+							{/* ✅ Projects & stages */}
+							{!fetchLoading &&
+								Object.entries(grouped).map(([project, list]) => (
+									<>
+										<TableRow className="bg-blue-50">
+											<TableCell colSpan={6} className="font-semibold text-blue-900">
+												📌 {project}
+											</TableCell>
 										</TableRow>
 
-										{projectStages.map((s) => (
-											<TableRow key={s.id}>
-												<TableCell></TableCell>
-												<TableCell>{s.name}</TableCell>
+										{list.map((s, i) => (
+											<TableRow key={s.id} className="hover:bg-gray-50 transition-all">
+												<TableCell>{i + 1}</TableCell>
+												<TableCell className="font-medium">{s.name}</TableCell>
+												<TableCell className="text-gray-600">{s.description || "-"}</TableCell>
+												<TableCell>{statusBadge(s)}</TableCell>
 
-												{/* ✅ Progress Bar */}
-												<TableCell className="w-56">
-													<div className="relative w-full">
-														<div className="h-2 rounded bg-gray-200 relative">
-															<div
-																className={`h-2 rounded ${progressColor(s.progress)}`}
-																style={{ width: `${s.progress}%` }}
-															></div>
-														</div>
-														<span className="text-xs font-semibold absolute left-1 top-2">
-															{s.progress}%
-														</span>
-													</div>
+												<TableCell className="text-center">
+													<Button
+														size="sm"
+														variant="outline"
+														onClick={() => setRemarkSheetStage(s)}
+														className="gap-1"
+													>
+														<MessageCircle className="h-4 w-4" />
+														({s.remarks?.length || 0})
+													</Button>
 												</TableCell>
 
-												<TableCell>
-													{formatDate(s.startDate)}  → {formatDate(s.endDate)}
-												</TableCell>
+												<TableCell className="flex gap-2 justify-center">
+													<Button
+														size="icon"
+														variant="outline"
+														onClick={() => {
+															setEditingId(s.id);
+															setName(s.name);
+															setDescription(s.description);
+															setProjectId(s.projectId.toString());
+															setAddDialogOpen(true);
+														}}
+													>
+														<Pencil className="h-4 w-4 text-blue-600" />
+													</Button>
 
-
-												<TableCell className="flex gap-2">
-													<Button size="sm" onClick={() => setEditStage(s)}>Edit</Button>
-													<Button size="sm" variant="destructive" onClick={() => handleDelete(s.id)}>
-														Delete
+													<Button
+														size="icon"
+														variant="destructive"
+														onClick={() => deleteStage(s.id)}
+													>
+														<Trash2 className="h-4 w-4" />
 													</Button>
 												</TableCell>
 											</TableRow>
 										))}
-									</React.Fragment>
-								);
-							})
-						)}
-					</TableBody>
-				</Table>
-			</div>
+									</>
+								))}
 
-			{/* ✅ Edit Modal */}
-			{editStage && (
-				<Dialog open={true} onOpenChange={() => setEditStage(null)}>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>Edit Stage</DialogTitle>
-						</DialogHeader>
+							{!fetchLoading && stages.length === 0 && (
+								<TableRow>
+									<TableCell colSpan={6} className="text-center py-4 text-gray-400">
+										No stages found
+									</TableCell>
+								</TableRow>
+							)}
+						</TableBody>
+					</Table>
+				</CardContent>
+			</Card>
 
-						<form onSubmit={handleEditSubmit} className="space-y-3">
-							<Input value={editStage.name} onChange={(e) => setEditStage({ ...editStage, name: e.target.value })} />
-							<Textarea value={editStage.description} onChange={(e) => setEditStage({ ...editStage, description: e.target.value })} />
-							<Input type="date" value={editStage.startDate?.slice(0, 10)} onChange={(e) => setEditStage({ ...editStage, startDate: e.target.value })} />
-							<Input type="date" value={editStage.endDate?.slice(0, 10)} onChange={(e) => setEditStage({ ...editStage, endDate: e.target.value })} />
+			{/* ✅ Add / Edit Stage Modal */}
+			<Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+				<DialogContent className="space-y-4">
+					<DialogHeader>
+						<DialogTitle>{editingId ? "Update Stage" : "Add New Stage"}</DialogTitle>
+					</DialogHeader>
 
-							<DialogFooter>
-								<Button type="submit" disabled={editLoading}>
-									{editLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Update
+					<Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Stage Name" />
+					<Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
+
+					<Select onValueChange={setProjectId} value={projectId}>
+						<SelectTrigger>
+							<SelectValue placeholder="Select Project" />
+						</SelectTrigger>
+						<SelectContent>
+							{projects.map((p) => (
+								<SelectItem key={p.id} value={p.id.toString()}>
+									{p.title} — {p.projectType?.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+
+					<DialogFooter>
+						<Button onClick={editingId ? () => updateStage(editingId) : addStage} disabled={loading}>
+							{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : editingId ? "Update Stage" : "Add Stage"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* ✅ Remark Sheet */}
+			{remarkSheetStage && (
+				<Sheet open={true} onOpenChange={() => setRemarkSheetStage(null)}>
+					<SheetContent className="w-[420px] overflow-auto">
+						<SheetHeader>
+							<SheetTitle>Remarks — {remarkSheetStage.name}</SheetTitle>
+						</SheetHeader>
+
+						<div className="mt-4 space-y-3 p-2">
+							{remarkSheetStage.remarks?.length > 0 ? (
+								remarkSheetStage.remarks.map((r) => (
+									<div
+										key={r.id}
+										className={`p-3 rounded-md border shadow-sm
+											${r.by === "admin" ? "bg-red-50 border-red-400 text-red-700" : "bg-blue-50 border-blue-400 text-blue-700"}`}
+									>
+										<b>{r.by === "admin" ? "Admin" : "Contractor"}:</b>
+										<p className="text-sm mt-1">{r.message}</p>
+										<p className="text-xs opacity-70">{formatDate(r.createdAt)}</p>
+									</div>
+								))
+							) : (
+								<p className="text-sm text-gray-500">No remarks yet</p>
+							)}
+
+							<Separator />
+
+							<Textarea
+								placeholder="Write remark..."
+								value={newRemark}
+								onChange={(e) => setNewRemark(e.target.value)}
+							/>
+
+							<SheetFooter>
+								<Button onClick={submitRemark} disabled={remarkLoading}>
+									{remarkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Remark"}
 								</Button>
-							</DialogFooter>
-						</form>
-					</DialogContent>
-				</Dialog>
+							</SheetFooter>
+						</div>
+					</SheetContent>
+				</Sheet>
 			)}
 		</div>
 	);

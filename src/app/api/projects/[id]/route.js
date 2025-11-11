@@ -2,15 +2,14 @@ import { NextResponse } from "next/server";
 import Project from "@/models/Project";
 import Client from "@/models/Client";
 import Contractor from "@/models/Contractor";
-import Material from "@/models/Material"; // ✅ ADD
+import ProjectType from "@/models/ProjectType";
+import Material from "@/models/Material";
 import "@/lib/db";
 import jwt from "jsonwebtoken";
 
-// ✅ Get User From Token
 function getUser(req) {
 	const authHeader = req.headers.get("authorization");
 	if (!authHeader) return null;
-
 	const token = authHeader.split(" ")[1];
 	if (!token) return null;
 
@@ -21,7 +20,6 @@ function getUser(req) {
 	}
 }
 
-// ✅ GET Project by ID
 export async function GET(req, context) {
 	try {
 		const decoded = getUser(req);
@@ -39,7 +37,8 @@ export async function GET(req, context) {
 			include: [
 				{ model: Client, as: "client" },
 				{ model: Contractor, as: "contractor" },
-			]
+				{ model: ProjectType, as: "projectType" },
+			],
 		});
 
 		if (!project)
@@ -51,7 +50,6 @@ export async function GET(req, context) {
 	}
 }
 
-// ✅ UPDATE Project
 export async function PUT(req, context) {
 	try {
 		const authHeader = req.headers.get("authorization");
@@ -85,7 +83,10 @@ export async function PUT(req, context) {
 		if (decoded.role === "client" && project.clientId !== decoded.id)
 			return NextResponse.json({ success: false, msg: "No permission" }, { status: 403 });
 
-		await project.update(data);
+		await project.update({
+			...data,
+			projectTypeId: data.projectTypeId ? Number(data.projectTypeId) : project.projectTypeId,
+		});
 
 		return NextResponse.json({ success: true, msg: "Updated", project });
 	} catch (err) {
@@ -94,7 +95,6 @@ export async function PUT(req, context) {
 	}
 }
 
-// ✅ DELETE Project
 export async function DELETE(req, context) {
 	try {
 		const decoded = getUser(req);
@@ -107,17 +107,13 @@ export async function DELETE(req, context) {
 		if (!project)
 			return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
 
-		// ✅ Only owner or admin can delete
 		if (decoded.role === "client" && project.clientId !== decoded.id)
 			return NextResponse.json({ success: false, error: "No permission" }, { status: 403 });
 
 		if (decoded.role === "contractor" && project.contractorId !== decoded.id)
 			return NextResponse.json({ success: false, error: "No permission" }, { status: 403 });
 
-		// ✅ First delete related materials
 		await Material.destroy({ where: { projectId: id } });
-
-		// ✅ Now delete project
 		await Project.destroy({ where: { id } });
 
 		return NextResponse.json({ success: true, message: "Deleted" });

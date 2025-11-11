@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Project from "@/models/Project";
 import Client from "@/models/Client";
 import Contractor from "@/models/Contractor";
+import ProjectType from "@/models/ProjectType";
 import "@/lib/db";
 
 export async function GET() {
@@ -9,9 +10,10 @@ export async function GET() {
 		const projects = await Project.findAll({
 			include: [
 				{ model: Client, as: "client", attributes: ["id", "name", "email", "clientId"] },
-				{ model: Contractor, as: "contractor", attributes: ["id", "name", "email", "contractorId"] }
+				{ model: Contractor, as: "contractor", attributes: ["id", "name", "email", "contractorId"] },
+				{ model: ProjectType, as: "projectType", attributes: ["id", "name"] },
 			],
-			order: [["createdAt", "DESC"]]
+			order: [["createdAt", "ASC"]],
 		});
 
 		return NextResponse.json({ success: true, projects });
@@ -25,9 +27,9 @@ export async function POST(req) {
 	try {
 		const body = await req.json();
 
-		if (!body.title || !body.clientId || !body.contractorId) {
+		if (!body.title || !body.clientId || !body.contractorId || !body.projectTypeId) {
 			return NextResponse.json(
-				{ success: false, error: "Title, clientId, contractorId are required" },
+				{ success: false, error: "Title, clientId, contractorId, projectTypeId required" },
 				{ status: 400 }
 			);
 		}
@@ -41,6 +43,7 @@ export async function POST(req) {
 			totalCost: body.totalCost,
 			clientId: Number(body.clientId),
 			contractorId: Number(body.contractorId),
+			projectTypeId: Number(body.projectTypeId),
 		});
 
 		return NextResponse.json({ success: true, project });

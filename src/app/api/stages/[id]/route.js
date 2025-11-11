@@ -1,41 +1,78 @@
 import { NextResponse } from "next/server";
 import Stage from "@/models/Stage";
-import "@/lib/sync";
+import StageRemark from "@/models/StageRemark";
+import "@/lib/db";
 
-// ✅ DELETE /api/admin/stages/:id
-export async function DELETE(req, { params }) {
+// ✅ Get Single Stage
+export async function GET(req, ctx) {
 	try {
-		const { id } = await params; // ✅ unwrap params
-		const stage = await Stage.findByPk(id);
+		const { id } = await ctx.params;
 
-		if (!stage) {
-			return NextResponse.json({ success: false, msg: "Stage not found" });
-		}
+		const stage = await Stage.findByPk(id, {
+			include: [{ model: StageRemark, as: "remarks" }],
+		});
 
-		await stage.destroy();
+		if (!stage)
+			return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
-		return NextResponse.json({ success: true, msg: "Stage deleted successfully" });
+		return NextResponse.json({ success: true, stage });
+
 	} catch (err) {
-		console.error("DELETE Stage Error:", err);
-		return NextResponse.json({ success: false, msg: "Error deleting stage" });
+		return NextResponse.json({ success: false, error: err.message }, { status: 500 });
 	}
 }
 
-// ✅ PUT /api/admin/stages/:id
-export async function PUT(req, { params }) {
+// ✅ Update Stage + Add Remark
+export async function PUT(req, ctx) {
 	try {
-		const { id } = await params; // ✅ unwrap params
+		const { id } = await ctx.params;
 		const body = await req.json();
 
-		const [updated] = await Stage.update(body, { where: { id } });
+		const stage = await Stage.findByPk(id);
+		if (!stage)
+			return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
-		if (!updated) {
-			return NextResponse.json({ success: false, msg: "Stage not found or no change" });
+		await stage.update({
+			name: body.name ?? stage.name,
+			description: body.description ?? stage.description,
+			projectId: body.projectId ?? stage.projectId,
+			isCompleted: body.isCompleted ?? stage.isCompleted,
+			isApproved: body.isApproved ?? stage.isApproved,
+		});
+
+		if (body.remark) {
+			await StageRemark.create({
+				stageId: id,
+				by: body.by,
+				message: body.remark,
+			});
 		}
 
-		return NextResponse.json({ success: true, msg: "Stage updated successfully" });
+		return NextResponse.json({ success: true, stage });
+
 	} catch (err) {
-		console.error("UPDATE Stage Error:", err);
-		return NextResponse.json({ success: false, msg: "Error updating stage" });
+		return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+	}
+}
+
+// ✅ Delete Stage (fixed)
+export async function DELETE(req, ctx) {
+	try {
+		const { id } = await ctx.params;
+
+		const stage = await Stage.findByPk(id);
+		if (!stage)
+			return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+
+		// ✅ delete remarks first
+		await StageRemark.destroy({ where: { stageId: id } });
+
+		// ✅ delete stage
+		await stage.destroy();
+
+		return NextResponse.json({ success: true, message: "Deleted" });
+
+	} catch (err) {
+		return NextResponse.json({ success: false, error: err.message }, { status: 500 });
 	}
 }
