@@ -6,7 +6,7 @@ import "@/lib/db";
 export async function GET() {
 	const drawings = await Drawing.findAll({
 		include: [{ model: Project, as: "project" }],
-		order: [["id", "DESC"]],
+		order: [["id", "ASC"]],
 	});
 	return NextResponse.json(drawings);
 }

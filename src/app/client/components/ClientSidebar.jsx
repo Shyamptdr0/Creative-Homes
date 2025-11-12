@@ -6,7 +6,7 @@ import {
 	CheckCircle,
 	FolderOpen,
 	MessageSquare,
-	CreditCard, CircleUser,
+	CreditCard, CircleUser, PencilRuler,
 } from "lucide-react";
 import SidebarPage from "@/components/SidebarPage";
 import {useRouter} from "next/navigation";
@@ -23,7 +23,7 @@ export default function ClientSidebar() {
 	const menuItems = [
 		{ title: "Home", icon: Home },
 		{ title: "Project", icon: CheckCircle },
-		{ title: "Documents", icon: FolderOpen },
+		{ title: "Drawing", icon: PencilRuler},
 		{ title: "Queries", icon: MessageSquare },
 		{ title: "Payments", icon: CreditCard },
 		{ title: "Profile", icon: CircleUser}

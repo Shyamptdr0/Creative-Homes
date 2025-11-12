@@ -106,7 +106,7 @@ export default function StagesPage() {
 		await fetch(`/api/stages/${id}`, {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name, description, projectId }),
+			body: JSON.stringify({ name,description,projectId }),
 		});
 
 		setLoading(false);
@@ -116,12 +116,11 @@ export default function StagesPage() {
 	};
 
 	const deleteStage = async (id) => {
-		if (!confirm("Delete stages?")) return;
+		if (!confirm("Delete stage?")) return;
 		await fetch(`/api/stages/${id}`, { method: "DELETE" });
 		fetchData();
 	};
 
-	// ✅ Add remark & update instantly
 	const submitRemark = async () => {
 		if (!newRemark.trim()) return alert("Enter remark");
 		setRemarkLoading(true);
@@ -131,16 +130,15 @@ export default function StagesPage() {
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
 				remark: newRemark,
-				by: "admin",
-				isCompleted: remarkSheetStage.isCompleted,
+				by: "admin", // ✅ Admin sending remark
 			}),
 		});
 
-		// ✅Instant update inside sheet
+		// ✅ Instant UI update
 		setRemarkSheetStage((prev) => ({
 			...prev,
 			remarks: [
-				...prev.remarks,
+				...(prev.remarks || []),
 				{
 					id: Math.random(),
 					by: "admin",
@@ -206,7 +204,7 @@ export default function StagesPage() {
 						</TableHeader>
 
 						<TableBody>
-							{/* ✅ Loader in table */}
+							{/* Loader */}
 							{fetchLoading && (
 								<TableRow>
 									<TableCell colSpan={6} className="py-6 text-center text-gray-500">
@@ -216,7 +214,7 @@ export default function StagesPage() {
 								</TableRow>
 							)}
 
-							{/* ✅ Projects & stages */}
+							{/* Grouped Rows */}
 							{!fetchLoading &&
 								Object.entries(grouped).map(([project, list]) => (
 									<>
@@ -285,7 +283,7 @@ export default function StagesPage() {
 				</CardContent>
 			</Card>
 
-			{/* ✅ Add / Edit Stage Modal */}
+			{/* ✅ Add / Edit Stage Dialog */}
 			<Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
 				<DialogContent className="space-y-4">
 					<DialogHeader>
@@ -316,7 +314,7 @@ export default function StagesPage() {
 				</DialogContent>
 			</Dialog>
 
-			{/* ✅ Remark Sheet */}
+			{/* ✅ Remark Sheet with 3 role design */}
 			{remarkSheetStage && (
 				<Sheet open={true} onOpenChange={() => setRemarkSheetStage(null)}>
 					<SheetContent className="w-[420px] overflow-auto">
@@ -326,17 +324,36 @@ export default function StagesPage() {
 
 						<div className="mt-4 space-y-3 p-2">
 							{remarkSheetStage.remarks?.length > 0 ? (
-								remarkSheetStage.remarks.map((r) => (
-									<div
-										key={r.id}
-										className={`p-3 rounded-md border shadow-sm
-											${r.by === "admin" ? "bg-red-50 border-red-400 text-red-700" : "bg-blue-50 border-blue-400 text-blue-700"}`}
-									>
-										<b>{r.by === "admin" ? "Admin" : "Contractor"}:</b>
-										<p className="text-sm mt-1">{r.message}</p>
-										<p className="text-xs opacity-70">{formatDate(r.createdAt)}</p>
-									</div>
-								))
+								remarkSheetStage.remarks.map((r) => {
+									let bubble = "bg-gray-100 border-gray-300 text-gray-700";
+									let sender = "User";
+
+									if (r.by === "admin") {
+										bubble = "bg-red-100 border-red-400 text-red-700";
+										sender = "Admin";
+									}
+									if (r.by === "contractor") {
+										bubble = "bg-blue-100 border-blue-400 text-blue-700";
+										sender = "Contractor";
+									}
+									if (r.by === "client") {
+										bubble = "bg-green-100 border-green-400 text-green-700";
+										sender = "Client";
+									}
+
+									return (
+										<div
+											key={r.id}
+											className={`p-3 rounded-md border shadow-sm max-w-[90%] ${bubble} ${
+												r.by === "admin" ? "ml-auto" : ""
+											}`}
+										>
+											<b>{sender}:</b>
+											<p className="text-sm mt-1">{r.message}</p>
+											<p className="text-xs opacity-70">{formatDate(r.createdAt)}</p>
+										</div>
+									);
+								})
 							) : (
 								<p className="text-sm text-gray-500">No remarks yet</p>
 							)}

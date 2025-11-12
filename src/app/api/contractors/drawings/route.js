@@ -35,8 +35,8 @@ export async function GET(req) {
 					]
 				}
 			],
-			where: { "$project.contractorId$": contractorId }, // ✅ FILTER WORKING HERE
-			order: [["id", "DESC"]],
+			where: { "$project.contractorId$": contractorId },
+			order: [["id", "ASC"]],
 		});
 
 		return NextResponse.json({ success: true, drawings });

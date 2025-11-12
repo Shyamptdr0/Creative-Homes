@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+
 import {
 	Dialog,
 	DialogContent,
@@ -37,7 +38,8 @@ export default function ContractorStages() {
 	const [remarkSheetStage, setRemarkSheetStage] = useState(null);
 	const [newRemark, setNewRemark] = useState("");
 
-	// ✅ Fetch stages + Normalize Data
+	const remarkEndRef = useRef(null);
+
 	const fetchStages = async () => {
 		try {
 			setFetchLoading(true);
@@ -70,7 +72,12 @@ export default function ContractorStages() {
 		fetchStages();
 	}, []);
 
-	// ✅ Save Completed Update
+	useEffect(() => {
+		if (remarkEndRef.current) {
+			remarkEndRef.current.scrollIntoView({ behavior: "smooth" });
+		}
+	}, [remarkSheetStage]);
+
 	const saveChanges = async () => {
 		setLoading(true);
 		const token = sessionStorage.getItem("token");
@@ -96,7 +103,6 @@ export default function ContractorStages() {
 		setLoading(false);
 	};
 
-	// ✅ Send remark instantly update UI
 	const submitRemark = async () => {
 		if (!newRemark.trim()) return alert("Enter remark");
 		setRemarkLoading(true);
@@ -107,32 +113,37 @@ export default function ContractorStages() {
 			method: "PUT",
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-			},
+				Authorization: `Bearer ${token}` },
 			body: JSON.stringify({
 				remark: newRemark,
 				by: "contractor",
 			}),
 		});
 
-		setRemarkSheetStage((prev) => ({
-			...prev,
-			remarks: [
-				...prev.remarks,
+		// ✅ Add and sort by time
+		setRemarkSheetStage((prev) => {
+			const sorted = [
+				...(prev.remarks || []),
 				{
 					id: Math.random(),
 					by: "contractor",
 					message: newRemark,
 					createdAt: new Date(),
 				},
-			],
-		}));
+			].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+			return { ...prev, remarks: sorted };
+		});
 
 		setNewRemark("");
 		setRemarkLoading(false);
+
+		setTimeout(() => {
+			if (remarkEndRef.current)
+				remarkEndRef.current.scrollIntoView({ behavior: "smooth" });
+		}, 50);
 	};
 
-	// ✅ Group by project
 	const grouped = stages.reduce((acc, s) => {
 		const pid = s.project.id;
 		if (!acc[pid]) acc[pid] = { project: s.project, stages: [] };
@@ -160,17 +171,15 @@ export default function ContractorStages() {
 		<div className="container mx-auto py-6 space-y-6">
 			<h1 className="text-3xl font-bold">Stages</h1>
 
-			{/* ✅ Full Page Loader */}
 			{fetchLoading && stages.length === 0 && (
 				<div className="flex justify-center py-20">
-					<div className="flex items-center gap-3 text-lg  p-4 ">
+					<div className="flex items-center gap-3 text-lg p-4">
 						<Loader2 className="w-6 h-6 animate-spin text-gray-600" />
 						Loading...
 					</div>
 				</div>
 			)}
 
-			{/* ✅ Stages List */}
 			{!fetchLoading &&
 				Object.values(grouped).map(({ project, stages }) => (
 					<div
@@ -183,15 +192,8 @@ export default function ContractorStages() {
 							</h2>
 						</div>
 
-						{/* ✅ TABLE AREA LOADING */}
-						{fetchLoading ? (
-							<div className="flex justify-center py-10">
-								<Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-							</div>
-						) : stages.length === 0 ? (
-							<div className="p-5 text-center text-gray-500">
-								No stages found
-							</div>
+						{stages.length === 0 ? (
+							<div className="p-5 text-center text-gray-500">No stages found</div>
 						) : (
 							<div className="space-y-4 p-4">
 								{stages.map((s) => (
@@ -201,9 +203,7 @@ export default function ContractorStages() {
 									>
 										<div className="flex justify-between items-start">
 											<div>
-												<p className="font-semibold text-lg text-gray-800">
-													{s.name}
-												</p>
+												<p className="font-semibold text-lg text-gray-800">{s.name}</p>
 												<p className="text-sm text-gray-600">{s.description}</p>
 											</div>
 
@@ -213,7 +213,16 @@ export default function ContractorStages() {
 													size="sm"
 													variant="outline"
 													className="flex items-center gap-1"
-													onClick={() => setRemarkSheetStage(s)}
+													onClick={() =>
+														setRemarkSheetStage({
+															...s,
+															remarks: (s.remarks || []).sort(
+																(a, b) =>
+																	new Date(a.createdAt) -
+																	new Date(b.createdAt)
+															),
+														})
+													}
 												>
 													<MessageCircle className="w-4 h-4" />
 													Remarks ({s.remarks?.length || 0})
@@ -240,7 +249,6 @@ export default function ContractorStages() {
 					</div>
 				))}
 
-			{/* ✅ Update Popup */}
 			{editStage && (
 				<Dialog open={true} onOpenChange={() => setEditStage(null)}>
 					<DialogContent className="space-y-3">
@@ -261,76 +269,76 @@ export default function ContractorStages() {
 
 						<DialogFooter>
 							<Button onClick={saveChanges} disabled={loading}>
-								{loading ? (
-									<Loader2 className="w-4 h-4 animate-spin" />
-								) : (
-									"Save"
-								)}
+								{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
 							</Button>
 						</DialogFooter>
 					</DialogContent>
 				</Dialog>
 			)}
 
-			{/* ✅ Remark Sheet */}
 			{remarkSheetStage && (
 				<Sheet open={true} onOpenChange={() => setRemarkSheetStage(null)}>
-					<SheetContent className="w-[420px] overflow-auto">
+					<SheetContent className="w-[420px] overflow-auto p-2">
 						<SheetHeader>
 							<SheetTitle className="font-semibold text-lg">
 								Conversation — {remarkSheetStage.name}
 							</SheetTitle>
 						</SheetHeader>
 
-						<div className="mt-4 space-y-4 px-2">
+						<div className="mt-4 space-y-3 px-1 max-h-[78vh] overflow-y-auto">
 							{remarkSheetStage.remarks?.length > 0 ? (
-								<div className="space-y-3">
-									{remarkSheetStage.remarks.map((r) => (
-										<div
-											key={r.id}
-											className={`p-3 rounded-lg shadow-sm text-sm max-w-[88%] ${
-												r.by === "admin"
-													? "bg-red-100 border border-red-300 ml-auto"
-													: "bg-blue-100 border border-blue-300"
-											}`}
-										>
-											<b className="text-xs">
-												{r.by === "admin" ? "Admin" : "You"}
-											</b>
-											<p className="mt-1">{r.message}</p>
-											<p className="text-[10px] opacity-60 mt-1">
-												{formatDate(r.createdAt)}
-											</p>
+								remarkSheetStage.remarks.map((r) => {
+									let bubble = "";
+									let align = "justify-start";
+									let name = "Admin";
+
+									if (r.by === "contractor") {
+										bubble = "bg-blue-100 border-blue-300 text-blue-700";
+										align = "justify-end";
+										name = "You";
+									} else if (r.by === "client") {
+										bubble = "bg-green-100 border-green-300 text-green-700";
+										name = "Client";
+									} else {
+										bubble = "bg-red-100 border-red-300 text-red-700";
+										name = "Admin";
+									}
+
+									return (
+										<div key={r.id} className={`flex w-full ${align}`}>
+											<div
+												className={`max-w-[80%] p-3 rounded-xl shadow-sm border ${bubble}`}
+											>
+												<p className="text-sm font-medium">{r.message}</p>
+												<p className="text-[11px] mt-1 flex justify-between text-gray-600">
+													<span>{name}</span>
+													<span>{formatDate(r.createdAt)}</span>
+												</p>
+											</div>
 										</div>
-									))}
-								</div>
+									);
+								})
 							) : (
-								<p className="text-sm text-gray-500">No remarks yet</p>
+								<p className="text-gray-500 text-sm">No remarks yet</p>
 							)}
 
-							<Separator className="my-3" />
-
-							<Textarea
-								placeholder="Write your message..."
-								value={newRemark}
-								onChange={(e) => setNewRemark(e.target.value)}
-								className="h-24"
-							/>
-
-							<SheetFooter>
-								<Button
-									onClick={submitRemark}
-									disabled={remarkLoading}
-									className="w-full"
-								>
-									{remarkLoading ? (
-										<Loader2 className="w-4 h-4 animate-spin" />
-									) : (
-										"Send"
-									)}
-								</Button>
-							</SheetFooter>
+							<div ref={remarkEndRef} />
 						</div>
+
+						<Separator className="my-3" />
+
+						<Textarea
+							placeholder="Write your message..."
+							value={newRemark}
+							onChange={(e) => setNewRemark(e.target.value)}
+							className="h-20"
+						/>
+
+						<SheetFooter>
+							<Button onClick={submitRemark} disabled={remarkLoading} className="w-full">
+								{remarkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+							</Button>
+						</SheetFooter>
 					</SheetContent>
 				</Sheet>
 			)}

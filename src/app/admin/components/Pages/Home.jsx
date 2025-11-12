@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
 	Card, CardHeader, CardTitle, CardContent
 } from "@/components/ui/card";
@@ -62,14 +62,24 @@ export default function AdminDashboard({ setActivePage }) {
 	const [selectedDrawing, setSelectedDrawing] = useState(null);
 	const [projectFiles, setProjectFiles] = useState([]);
 
+	// ✅ Remark Sheet State
 	const [remarkSheetStage, setRemarkSheetStage] = useState(null);
 	const [newRemark, setNewRemark] = useState("");
 	const [remarkLoading, setRemarkLoading] = useState(false);
+	const [remarkFetchLoading, setRemarkFetchLoading] = useState(false);
+
+	const remarkEndRef = useRef(null);
 
 	useEffect(() => {
 		fetchStats();
 		fetchNewQueries();
 	}, []);
+
+	useEffect(() => {
+		if (remarkEndRef.current) {
+			remarkEndRef.current.scrollIntoView({ behavior: "smooth" });
+		}
+	}, [remarkSheetStage]);
 
 	async function fetchStats() {
 		const [clientsRes, contractorsRes, projectsRes] = await Promise.all([
@@ -96,6 +106,27 @@ export default function AdminDashboard({ setActivePage }) {
 		setNewQueries(data.newQueries || 0);
 	}
 
+	// ✅ OPEN REMARKS — real-time fetch with loader
+	const openRemarks = async (stage) => {
+		setRemarkSheetStage({ ...stage, remarks: [] }); // show empty UI until fetch completes
+		setRemarkFetchLoading(true);
+
+		const res = await fetch(`/api/stages/${stage.id}`);
+		const data = await res.json();
+
+		if (data.success) {
+			const sorted = (data.stage.remarks || []).sort(
+				(a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+			);
+
+			setRemarkSheetStage({ ...data.stage, remarks: sorted });
+		} else {
+			setRemarkSheetStage(stage);
+		}
+
+		setRemarkFetchLoading(false);
+	};
+
 	async function loadDetails(type) {
 		setSelectedView(type);
 		setTableLoading(true);
@@ -115,7 +146,6 @@ export default function AdminDashboard({ setActivePage }) {
 		const clients = await clientsRes.json();
 		const contractors = await contractorsRes.json();
 
-		// ✅ ADD PROJECT TYPE NAME EVERYWHERE
 		if (type === "projects") {
 			const mapped = projects.projects.map((project) => {
 				const projectStages = stages.stages.filter((s) => s.projectId === project.id);
@@ -124,7 +154,7 @@ export default function AdminDashboard({ setActivePage }) {
 					...project,
 					projectStages,
 					projectDrawings,
-					projectTypeName: project?.projectType?.name || "Unknown", // ✅ added
+					projectTypeName: project?.projectType?.name || "Unknown",
 				};
 			});
 			setTableData(mapped);
@@ -179,6 +209,7 @@ export default function AdminDashboard({ setActivePage }) {
 			minute: "2-digit",
 		});
 
+	// ✅ SEND REMARK — instantly update & refetch
 	const sendRemark = async () => {
 		if (!newRemark.trim()) return;
 		setRemarkLoading(true);
@@ -192,15 +223,11 @@ export default function AdminDashboard({ setActivePage }) {
 			}),
 		});
 
-		remarkSheetStage.remarks.push({
-			id: Math.random(),
-			by: "admin",
-			message: newRemark,
-			createdAt: new Date(),
-		});
-
 		setNewRemark("");
 		setRemarkLoading(false);
+
+		// ✅ fetch latest messages
+		openRemarks(remarkSheetStage);
 	};
 
 	const openPreview = (drawing) => {
@@ -224,6 +251,7 @@ export default function AdminDashboard({ setActivePage }) {
 				</div>
 			</div>
 
+			{/* DASHBOARD CARDS */}
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
 				<Card onClick={() => loadDetails("projects")} className="hover:shadow-xl cursor-pointer">
 					<CardHeader className="flex justify-between items-center">
@@ -269,6 +297,7 @@ export default function AdminDashboard({ setActivePage }) {
 				</Card>
 			</div>
 
+			{/* TABLE VIEW */}
 			{selectedView && (
 				<Card className="shadow-lg p-6 bg-white rounded-xl">
 					<h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-3 capitalize">
@@ -378,7 +407,7 @@ export default function AdminDashboard({ setActivePage }) {
 				</Card>
 			)}
 
-			{/* ✅ PROJECT DETAILS DIALOG */}
+			{/* PROJECT DETAILS */}
 			{openProjectDialog && (
 				<Dialog open={true} onOpenChange={() => setOpenProjectDialog(null)}>
 					<DialogContent className="max-w-3xl">
@@ -416,7 +445,7 @@ export default function AdminDashboard({ setActivePage }) {
 													<Button
 														size="icon"
 														variant="outline"
-														onClick={() => setRemarkSheetStage(s)}
+														onClick={() => openRemarks(s)}
 													>
 														<MessageCircle className="h-4 w-4" />
 													</Button>
@@ -504,6 +533,7 @@ export default function AdminDashboard({ setActivePage }) {
 				</Dialog>
 			)}
 
+			{/* ✅ REMARK SHEET — ALWAYS FETCH FRESH DATA */}
 			{remarkSheetStage && (
 				<Sheet open={true} onOpenChange={() => setRemarkSheetStage(null)}>
 					<SheetContent className="w-[420px] overflow-auto">
@@ -512,24 +542,46 @@ export default function AdminDashboard({ setActivePage }) {
 						</SheetHeader>
 
 						<div className="mt-4 space-y-4 px-2">
-							{remarkSheetStage.remarks?.length > 0 ? (
-								remarkSheetStage.remarks.map((r) => (
-									<div
-										key={r.id}
-										className={`p-3 rounded-lg shadow-sm text-sm max-w-[90%] ${
-											r.by === "admin"
-												? "bg-red-100 border ml-auto border-red-300"
-												: "bg-blue-100 border border-blue-300"
-										}`}
-									>
-										<b className="text-xs">{r.by === "admin" ? "Admin" : "Contractor"}</b>
-										<p className="mt-1">{r.message}</p>
-										<p className="text-[10px] opacity-50 mt-1">{formatDate(r.createdAt)}</p>
-									</div>
-								))
+							{remarkFetchLoading ? (
+								<div className="flex justify-center py-6">
+									<Loader2 className="h-6 w-6 animate-spin" />
+								</div>
+							) : remarkSheetStage?.remarks?.length > 0 ? (
+								remarkSheetStage.remarks.map((r) => {
+									let bubbleColor = "bg-gray-200 border-gray-300";
+									let label = "User";
+
+									if (r.by === "admin") {
+										bubbleColor = "bg-red-100 border-red-300";
+										label = "Admin";
+									}
+									if (r.by === "contractor") {
+										bubbleColor = "bg-blue-100 border-blue-300";
+										label = "Contractor";
+									}
+									if (r.by === "client") {
+										bubbleColor = "bg-green-100 border-green-300";
+										label = "Client";
+									}
+
+									return (
+										<div
+											key={r.id}
+											className={`p-3 rounded-lg shadow-sm text-sm max-w-[90%] border ${bubbleColor} ${
+												r.by === "admin" ? "ml-auto" : ""
+											}`}
+										>
+											<b className="text-xs">{label}</b>
+											<p className="mt-1">{r.message}</p>
+											<p className="text-[10px] opacity-50 mt-1">{formatDate(r.createdAt)}</p>
+										</div>
+									);
+								})
 							) : (
 								<p className="text-sm text-gray-500">No remarks yet</p>
 							)}
+
+							<div ref={remarkEndRef} />
 
 							<Separator className="my-2" />
 
