@@ -15,7 +15,17 @@ import {
 	Reply,
 	ChevronDown,
 	ChevronUp,
+	X,
+	ZoomIn,
 } from "lucide-react";
+
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+
 import {
 	Tabs,
 	TabsList,
@@ -34,9 +44,15 @@ export default function AdminQueriesPage() {
 
 	const [clientNew, setClientNew] = useState(0);
 	const [contractorNew, setContractorNew] = useState(0);
-	const [pageLoading, setPageLoading] = useState(true); // ✅ page data loading
+	const [pageLoading, setPageLoading] = useState(true);
 
-	// ✅ Fetch counts for badges
+	// 🆕 IMAGE MODAL
+	const [imageModal, setImageModal] = useState({
+		open: false,
+		url: null,
+	});
+
+	// FETCH COUNTS
 	const fetchCounts = async () => {
 		try {
 			const clientRes = await fetch(`/api/queries?type=client`);
@@ -55,12 +71,13 @@ export default function AdminQueriesPage() {
 		}
 	};
 
-	// ✅ Fetch queries for active tab
+	// FETCH QUERIES
 	const fetchQueries = async () => {
 		setPageLoading(true);
 		try {
 			const res = await fetch(`/api/queries?type=${tab}`);
 			let data = await res.json();
+
 			if (!Array.isArray(data)) data = [];
 
 			data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -69,7 +86,6 @@ export default function AdminQueriesPage() {
 			const newCount = data.filter((q) => !q.reply).length;
 			if (tab === "client") setClientNew(newCount);
 			else setContractorNew(newCount);
-
 		} catch {
 			setQueries([]);
 		}
@@ -84,10 +100,12 @@ export default function AdminQueriesPage() {
 		fetchQueries();
 	}, [tab]);
 
+	// SUBMIT REPLY
 	const submitReply = async (id) => {
 		if (!replyText) return alert("Reply cannot be empty");
 
 		setLoading(true);
+
 		await fetch(`/api/queries/reply/${id}`, {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
@@ -101,16 +119,19 @@ export default function AdminQueriesPage() {
 		setLoading(false);
 	};
 
+	// DELETE QUERY
 	const deleteQuery = async (id) => {
 		if (!confirm("Delete this query?")) return;
 		setLoading(true);
+
 		await fetch(`/api/queries/${id}`, { method: "DELETE" });
+
 		fetchQueries();
 		fetchCounts();
 		setLoading(false);
 	};
 
-	// ✅ Group by project
+	// GROUP BY PROJECT
 	const groupedQueries = queries.reduce((acc, q) => {
 		const projectName = q.Project?.title || "Unknown Project";
 		if (!acc[projectName]) acc[projectName] = [];
@@ -118,13 +139,14 @@ export default function AdminQueriesPage() {
 		return acc;
 	}, {});
 
-	// ✅ Render grouped list
+	// RENDER GROUPED CARDS
 	const renderGrouped = () =>
 		Object.keys(groupedQueries).map((project) => {
 			const projectQueries = groupedQueries[project];
 			const isOpen = openProject === project;
 
 			const newCount = projectQueries.filter((q) => !q.reply).length;
+
 			const filter = filterByProject[project] || "all";
 
 			const filtered =
@@ -207,6 +229,29 @@ export default function AdminQueriesPage() {
 										<strong>Message:</strong> {q.message}
 									</p>
 
+									{/* 🆕 SHOW IMAGE THUMBNAIL IF EXISTS */}
+									{q.imageUrl && (
+										<div className="mt-3">
+											<img
+												src={q.imageUrl}
+												className="w-28 h-28 object-cover rounded-lg border cursor-pointer"
+												onClick={() =>
+													setImageModal({ open: true, url: q.imageUrl })
+												}
+											/>
+											<Button
+												size="sm"
+												variant="ghost"
+												className="mt-1 flex items-center gap-1 text-blue-600"
+												onClick={() =>
+													setImageModal({ open: true, url: q.imageUrl })
+												}
+											>
+												<ZoomIn className="h-4 w-4" /> View Image
+											</Button>
+										</div>
+									)}
+
 									{q.reply && (
 										<p className="p-2 bg-green-50 border rounded mt-2 text-sm">
 											<strong>Reply:</strong> {q.reply}
@@ -233,6 +278,9 @@ export default function AdminQueriesPage() {
 										</Button>
 									</div>
 
+									{/* ------------------------------
+										 REPLY INPUT BOX
+									 -------------------------------- */}
 									{replyingId === q.id && (
 										<div className="mt-4 p-4 border rounded-lg bg-gray-50 space-y-3">
 											<Textarea
@@ -278,7 +326,10 @@ export default function AdminQueriesPage() {
 
 			<Tabs defaultValue="client" className="w-full" onValueChange={setTab}>
 				<TabsList className="mb-5 bg-gray-100 w-fit p-1 rounded-full shadow-sm">
-					<TabsTrigger value="client" className="px-6 rounded-full flex items-center gap-2">
+					<TabsTrigger
+						value="client"
+						className="px-6 rounded-full flex items-center gap-2"
+					>
 						Client Queries
 						{clientNew > 0 && (
 							<span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -300,7 +351,6 @@ export default function AdminQueriesPage() {
 					</TabsTrigger>
 				</TabsList>
 
-				{/* ✅ Client Content */}
 				<TabsContent value="client">
 					{pageLoading ? (
 						<div className="flex justify-center py-10">
@@ -313,7 +363,6 @@ export default function AdminQueriesPage() {
 					)}
 				</TabsContent>
 
-				{/* ✅ Contractor Content */}
 				<TabsContent value="contractor">
 					{pageLoading ? (
 						<div className="flex justify-center py-10">
@@ -326,6 +375,29 @@ export default function AdminQueriesPage() {
 					)}
 				</TabsContent>
 			</Tabs>
+
+			{/* FULL SCREEN IMAGE MODAL */}
+			<Dialog open={imageModal.open} onOpenChange={(v) => setImageModal({ open: v, url: null })}>
+				<DialogContent className="max-w-3xl p-0 overflow-hidden">
+					<DialogHeader className="p-4 flex justify-between items-center border-b">
+						<DialogTitle>Image Preview</DialogTitle>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => setImageModal({ open: false, url: null })}
+						>
+							<X className="h-5 w-5" />
+						</Button>
+					</DialogHeader>
+
+					<div className="w-full h-[70vh] bg-black flex justify-center items-center">
+						<img
+							src={imageModal.url}
+							className="max-h-full max-w-full object-contain"
+						/>
+					</div>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

@@ -110,8 +110,9 @@ export default function ProjectForm({ onSubmit, initialData }) {
 					<option value="completed">Completed</option>
 				</select>
 
-				<Label>Total Cost (₹)</Label>
+				<Label>rate(₹)</Label>
 				<Input
+					placeHolder="rate in per sq ft"
 					type="number"
 					name="totalCost"
 					value={form.totalCost}

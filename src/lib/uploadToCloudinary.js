@@ -6,7 +6,7 @@ export const uploadToCloudinary = async (buffer, folder = "drawings") => {
 		const uploadStream = cloudinary.uploader.upload_stream(
 			{
 				folder,
-				resource_type: "auto", // ✅ auto handles images & videos only here
+				resource_type: "auto",
 			},
 			(err, result) => {
 				if (err) {

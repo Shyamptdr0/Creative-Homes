@@ -94,7 +94,7 @@ export default function ContractorProjectsPage() {
 									</TableCell>
 
 									<TableCell>
-										{p.client ? `${p.client.clientId} — ${p.client.name}` : "N/A"}
+										{p.client ? `${p.client.ClientId} — ${p.client.name}` : "N/A"}
 									</TableCell>
 
 									<TableCell className="capitalize">{p.status}</TableCell>

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
-import { Loader2, ChevronLeft } from "lucide-react";
 import {
 	Sheet,
 	SheetTrigger,
@@ -13,7 +12,14 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Loader2, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle
+} from "@/components/ui/dialog";
 
 export default function HomePage() {
 	const [project, setProject] = useState(null);
@@ -27,6 +33,9 @@ export default function HomePage() {
 	const [addingRemark, setAddingRemark] = useState(false);
 
 	const remarkEndRef = useRef(null);
+
+	// NEW: Approval Popup
+	const [pendingApprovalProject, setPendingApprovalProject] = useState(null);
 
 	useEffect(() => {
 		if (remarkEndRef.current) {
@@ -60,6 +69,11 @@ export default function HomePage() {
 					types.find((t) => t.id === p.projectTypeId)?.name || "N/A";
 
 				setProject({ ...p, typeName });
+
+				// NEW: Approval Trigger
+				if (!p.clientApproved) {
+					setPendingApprovalProject(p);
+				}
 			} else {
 				setProject(null);
 			}
@@ -87,7 +101,19 @@ export default function HomePage() {
 		}
 	};
 
-	// ✅ Add client remark
+	// NEW: Approve Project Function
+	async function approveProject() {
+		const token = sessionStorage.getItem("token");
+		await fetch(`/api/projects/${pendingApprovalProject.id}/approve`, {
+			method: "PUT",
+			headers: {
+				Authorization: `Bearer ${token}`,
+			},
+		});
+		setPendingApprovalProject(null);
+		fetchProjectData();
+	}
+
 	const addRemark = async () => {
 		if (!remarkText.trim()) return toast.error("Remark cannot be empty");
 
@@ -134,7 +160,7 @@ export default function HomePage() {
 					}
 				}, 50);
 			} else {
-				toast.error("Failed to add remark");
+				toast.error("Failed to add remarks");
 			}
 		} finally {
 			setAddingRemark(false);
@@ -147,6 +173,37 @@ export default function HomePage() {
 
 	return (
 		<div className="p-3 md:p-6">
+
+			{/* ================================ */}
+			{/* NEW PROJECT APPROVAL POPUP */}
+			{/* ================================ */}
+			{pendingApprovalProject && (
+				<Dialog open={true}>
+					<DialogContent className="max-w-lg space-y-4 text-center">
+						<DialogHeader>
+							<DialogTitle className="text-xl font-bold">
+								New Project Requires Your Approval
+							</DialogTitle>
+						</DialogHeader>
+
+						<p className="text-gray-600 text-sm">
+							Please approve the project to allow work to begin.
+						</p>
+
+						<div className="bg-gray-100 p-4 rounded-md text-left">
+							<p><b>Title:</b> {pendingApprovalProject.title}</p>
+							<p><b>Type:</b> {pendingApprovalProject.typeName}</p>
+							<p><b>Total Cost:</b> ₹ {pendingApprovalProject.totalCost}</p>
+						</div>
+
+						<Button className="w-full" onClick={approveProject}>
+							Approve Project
+						</Button>
+					</DialogContent>
+				</Dialog>
+			)}
+			{/* ================================ */}
+
 			{loading ? (
 				<div className="flex justify-center py-14">
 					<Loader2 className="h-9 w-9 animate-spin text-gray-600" />
@@ -169,7 +226,6 @@ export default function HomePage() {
 								{project.status ? ` | ${project.status}` : ""}
 							</p>
 
-							{/* ✅ Project Info Cards */}
 							<div className="grid sm:grid-cols-2 gap-5 pt-3">
 								{[
 									{ label: "Project Type", value: project.typeName },
@@ -189,7 +245,6 @@ export default function HomePage() {
 								))}
 							</div>
 
-							{/* ✅ Stage Viewer */}
 							<Sheet onOpenChange={(open) => {
 								if (!open) {
 									setSelectedStage(null);
@@ -206,7 +261,7 @@ export default function HomePage() {
 									side="right"
 									className="w-full sm:w-[420px] md:w-[480px] lg:w-[520px] px-6 py-6 overflow-hidden pt-10"
 								>
-									{/* ✅ If stage is opened → chat view */}
+
 									{selectedStage ? (
 										<div className="flex flex-col h-full animate-fadeIn">
 											<div className="flex items-center gap-3 border-b pb-3 sticky top-0 bg-white z-30">
@@ -223,7 +278,6 @@ export default function HomePage() {
 												<h2 className="text-xl font-bold">{selectedStage.name}</h2>
 											</div>
 
-											{/* ✅ WhatsApp-style chat bubbles */}
 											<div className="flex-1 overflow-y-auto pr-2 py-3 space-y-3">
 												{selectedStage.remarks?.length ? (
 													selectedStage.remarks.map((r) => {
@@ -264,7 +318,6 @@ export default function HomePage() {
 												<div ref={remarkEndRef} />
 											</div>
 
-											{/* ✅ Input */}
 											<div className="border-t pt-3 pb-2 bg-white sticky bottom-0">
 												<p className="text-sm text-gray-600 mb-2">Add Your Remark:</p>
 												<div className="flex gap-2">
@@ -285,7 +338,6 @@ export default function HomePage() {
 										</div>
 									) : (
 										<>
-											{/* ✅ Stage list */}
 											<div className="sticky top-0 bg-white pb-3 border-b pt-5 z-20">
 												<SheetHeader>
 													<SheetTitle className="text-xl font-bold">Work Stages</SheetTitle>
@@ -336,7 +388,7 @@ export default function HomePage() {
 																			{index + 1}
 																		</div>
 																	) : (
-																		<div className="h-6 w-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-xs">
+																		<div className="h-6 w-6 rounded-full bg-gray-300 text-gray-600 flex items	center justify-center text-xs">
 																			{index + 1}
 																		</div>
 																	)}

@@ -1,4 +1,5 @@
 // ✅ /app/api/contractors/queries/route.js
+
 import { NextResponse } from "next/server";
 import Query from "@/models/Query";
 import Project from "@/models/Project";
@@ -29,6 +30,7 @@ export async function GET(req) {
 			);
 		}
 
+		// Only contractors allowed
 		if (decoded.role !== "contractor") {
 			return NextResponse.json(
 				{ success: false, message: "Access denied" },
@@ -38,17 +40,18 @@ export async function GET(req) {
 
 		const contractorId = decoded.id;
 
+		// Fetch contractor queries
 		const queries = await Query.findAll({
 			where: { contractorId },
 			include: [
 				{ model: Project, attributes: ["id", "title"] },
-				{ model: Client, attributes: ["clientId", "name"] },
+				{ model: Client, attributes: ["id", "name"] },
 				{ model: Contractor, attributes: ["id", "name"] },
 			],
 			order: [["createdAt", "DESC"]],
 		});
 
-		// ✅ Count queries that have no reply or empty reply
+		// Count new queries (no reply)
 		const newQueries = queries.filter(
 			(q) => !q.reply || q.reply.trim() === ""
 		).length;
@@ -58,6 +61,7 @@ export async function GET(req) {
 			queries,
 			newQueries,
 		});
+
 	} catch (error) {
 		console.error("CONTRACTOR QUERY API ERROR =>", error);
 		return NextResponse.json(

@@ -2,16 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogFooter,
-} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { Loader2, MessageCircle } from "lucide-react";
 
 import {
 	Sheet,
@@ -21,135 +16,68 @@ import {
 	SheetFooter,
 } from "@/components/ui/sheet";
 
-import { Loader2, CheckSquare, MessageCircle } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-
 export default function ContractorStages() {
 	const [stages, setStages] = useState([]);
-	const [editStage, setEditStage] = useState(null);
-	const [loading, setLoading] = useState(false);
+	const [loading, setLoading] = useState(true);
 
-	const [fetchLoading, setFetchLoading] = useState(true);
-	const [remarkLoading, setRemarkLoading] = useState(false);
-
-	const [isCompleted, setIsCompleted] = useState(false);
-	const [remark, setRemark] = useState("");
-
-	const [remarkSheetStage, setRemarkSheetStage] = useState(null);
+	// REMARK SHEET
+	const [remarkStage, setRemarkStage] = useState(null);
 	const [newRemark, setNewRemark] = useState("");
+	const [remarks, setRemarks] = useState([]);
+	const [remarkLoading, setRemarkLoading] = useState(false);
 
 	const remarkEndRef = useRef(null);
 
+	/* =========================================================
+	   LOAD STAGES
+	========================================================= */
 	const fetchStages = async () => {
-		try {
-			setFetchLoading(true);
-			const token = sessionStorage.getItem("token");
+		setLoading(true);
 
-			const res = await fetch("/api/contractors/stages", {
-				headers: { Authorization: `Bearer ${token}` },
-			});
+		const token = sessionStorage.getItem("token");
 
-			const data = await res.json();
+		const res = await fetch("/api/contractors/stages", {
+			headers: { Authorization: `Bearer ${token}` },
+		});
 
-			if (data.success) {
-				const normalized = data.stages.map((s) => ({
-					...s,
-					remarks: s.remarks || [],
-					project: s.project || {
-						id: `unknown-${Math.random()}`,
-						title: "Unknown Project",
-					},
-				}));
+		const data = await res.json();
 
-				setStages(normalized);
-			}
-		} finally {
-			setFetchLoading(false);
-		}
+		const safe = (data.stages || []).map((s) => ({
+			...s,
+			project: s.project ?? { id: "unknown", title: "Unknown Project" },
+			remarks: s.remarks || [],
+		}));
+
+		setStages(safe);
+		setLoading(false);
 	};
 
 	useEffect(() => {
 		fetchStages();
 	}, []);
 
+	// Auto scroll inside drawer
 	useEffect(() => {
 		if (remarkEndRef.current) {
 			remarkEndRef.current.scrollIntoView({ behavior: "smooth" });
 		}
-	}, [remarkSheetStage]);
+	}, [remarks]);
 
-	const saveChanges = async () => {
-		setLoading(true);
-		const token = sessionStorage.getItem("token");
+	/* =========================================================
+	   STATUS BADGE
+	========================================================= */
+	const statusBadge = (s) => {
+		if (s.status === "approved")
+			return <Badge className="bg-green-600 text-white">Approved</Badge>;
 
-		await fetch(`/api/stages/${editStage.id}`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-			},
-			body: JSON.stringify({
-				isCompleted,
-				remark: remark || (isCompleted ? "Stage completed ✅" : ""),
-				by: "contractor",
-			}),
-		});
+		if (s.status === "completed")
+			return <Badge className="bg-blue-600 text-white">Completed</Badge>;
 
-		setEditStage(null);
-		setRemark("");
-		setIsCompleted(false);
+		if (s.status === "rejected")
+			return <Badge className="bg-red-600 text-white">Rejected</Badge>;
 
-		await fetchStages();
-		setLoading(false);
+		return <Badge className="bg-gray-600 text-white">Pending</Badge>;
 	};
-
-	const submitRemark = async () => {
-		if (!newRemark.trim()) return alert("Enter remark");
-		setRemarkLoading(true);
-
-		const token = sessionStorage.getItem("token");
-
-		await fetch(`/api/stages/${remarkSheetStage.id}`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}` },
-			body: JSON.stringify({
-				remark: newRemark,
-				by: "contractor",
-			}),
-		});
-
-		// ✅ Add and sort by time
-		setRemarkSheetStage((prev) => {
-			const sorted = [
-				...(prev.remarks || []),
-				{
-					id: Math.random(),
-					by: "contractor",
-					message: newRemark,
-					createdAt: new Date(),
-				},
-			].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-			return { ...prev, remarks: sorted };
-		});
-
-		setNewRemark("");
-		setRemarkLoading(false);
-
-		setTimeout(() => {
-			if (remarkEndRef.current)
-				remarkEndRef.current.scrollIntoView({ behavior: "smooth" });
-		}, 50);
-	};
-
-	const grouped = stages.reduce((acc, s) => {
-		const pid = s.project.id;
-		if (!acc[pid]) acc[pid] = { project: s.project, stages: [] };
-		acc[pid].stages.push(s);
-		return acc;
-	}, {});
 
 	const formatDate = (d) =>
 		new Date(d).toLocaleString("en-IN", {
@@ -160,183 +88,265 @@ export default function ContractorStages() {
 			minute: "2-digit",
 		});
 
-	const statusBadge = (s) =>
-		s.isCompleted ? (
-			<Badge className="bg-green-600 text-white px-3 py-1">✅ Completed</Badge>
-		) : (
-			<Badge className="bg-gray-700 text-white px-3 py-1">Not Completed</Badge>
+	/* =========================================================
+	   COMPLETE STAGE Check
+	========================================================= */
+	const toggleComplete = async (stage) => {
+		const token = sessionStorage.getItem("token");
+
+		// instant UI
+		setStages((prev) =>
+			prev.map((s) =>
+				s.id === stage.id
+					? { ...s, status: s.status === "completed" ? "pending" : "completed" }
+					: s
+			)
 		);
 
+		// API
+		const res = await fetch(`/api/stages/${stage.id}/complete`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify({
+				message:
+					stage.status === "completed"
+						? "Marked pending"
+						: "Stage completed by contractor",
+			}),
+		});
+
+		const data = await res.json();
+
+		if (!data.success) {
+			toast.error("Failed to update");
+
+			// rollback
+			setStages((prev) =>
+				prev.map((s) =>
+					s.id === stage.id ? { ...s, status: stage.status } : s
+				)
+			);
+		}
+	};
+
+	/* =========================================================
+	   OPEN REMARKS
+	========================================================= */
+	const openRemarks = async (stage) => {
+		setRemarkStage(stage);
+		setRemarkLoading(true);
+
+		const res = await fetch(`/api/stages/${stage.id}/remarks`);
+		const data = await res.json();
+
+		if (data.success) setRemarks(data.remarks);
+
+		setRemarkLoading(false);
+	};
+
+	/* =========================================================
+	   SEND REMARK
+	========================================================= */
+	const sendRemark = async () => {
+		if (!newRemark.trim()) return toast.error("Enter remark");
+
+		const token = sessionStorage.getItem("token");
+
+		const res = await fetch(`/api/stages/${remarkStage.id}/remarks`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify({
+				message: newRemark,
+			}),
+		});
+
+		const data = await res.json();
+
+		if (data.success) {
+			const newMsg = {
+				id: Math.random(),
+				by: "contractor",
+				message: newRemark,
+				createdAt: new Date(),
+			};
+
+			// drawer add
+			setRemarks((prev) => [...prev, newMsg]);
+
+			// main list update
+			setStages((prev) =>
+				prev.map((s) =>
+					s.id === remarkStage.id
+						? { ...s, remarks: [...(s.remarks || []), newMsg] }
+						: s
+				)
+			);
+
+			setNewRemark("");
+		}
+	};
+
+	/* =========================================================
+	  GROUP BY PROJECT
+	========================================================= */
+	const grouped = stages.reduce((acc, s) => {
+		const key = s.project?.id || "unknown";
+		if (!acc[key]) {
+			acc[key] = {
+				project: s.project,
+				stages: [],
+			};
+		}
+
+		acc[key].stages.push(s);
+		return acc;
+	}, {});
+
+	/* =========================================================
+	   UI
+	========================================================= */
 	return (
-		<div className="container mx-auto py-6 space-y-6">
-			<h1 className="text-3xl font-bold">Stages</h1>
+		<div className="p-6 space-y-6">
+			<h1 className="text-2xl font-bold">My Project Stages</h1>
 
-			{fetchLoading && stages.length === 0 && (
+			{loading ? (
 				<div className="flex justify-center py-20">
-					<div className="flex items-center gap-3 text-lg p-4">
-						<Loader2 className="w-6 h-6 animate-spin text-gray-600" />
-						Loading...
-					</div>
+					<Loader2 className="w-8 h-8 animate-spin text-gray-700" />
 				</div>
-			)}
-
-			{!fetchLoading &&
+			) : (
 				Object.values(grouped).map(({ project, stages }) => (
 					<div
 						key={project.id}
-						className="shadow-sm border bg-white rounded-xl overflow-hidden"
+						className="border rounded-lg shadow bg-white overflow-hidden"
 					>
-						<div className="border-b bg-gray-50 px-5 py-3">
-							<h2 className="text-xl font-bold text-gray-800">
-								Project Name - {project.title}
+						<div className="bg-gray-100 px-5 py-3 border-b">
+							<h2 className="text-xl font-semibold">
+								Project — {project.title}
 							</h2>
 						</div>
 
-						{stages.length === 0 ? (
-							<div className="p-5 text-center text-gray-500">No stages found</div>
-						) : (
-							<div className="space-y-4 p-4">
-								{stages.map((s) => (
-									<div
-										key={s.id}
-										className="border rounded-lg p-4 bg-gray-50 hover:bg-white transition shadow-sm"
-									>
-										<div className="flex justify-between items-start">
-											<div>
-												<p className="font-semibold text-lg text-gray-800">{s.name}</p>
-												<p className="text-sm text-gray-600">{s.description}</p>
-											</div>
+						<div className="p-4 space-y-4">
+							{stages.map((s) => (
+								<div
+									key={s.id}
+									className="border p-4 rounded bg-gray-50 shadow-sm"
+								>
+									<div className="flex justify-between items-center">
+										<div className="space-y-2">
+											<p className="font-semibold text-lg">
+												{s.StageTemplate?.name}
+											</p>
 
-											<div className="flex justify-end gap-2 mt-3">
-												{statusBadge(s)}
-												<Button
-													size="sm"
-													variant="outline"
-													className="flex items-center gap-1"
-													onClick={() =>
-														setRemarkSheetStage({
-															...s,
-															remarks: (s.remarks || []).sort(
-																(a, b) =>
-																	new Date(a.createdAt) -
-																	new Date(b.createdAt)
-															),
-														})
-													}
-												>
-													<MessageCircle className="w-4 h-4" />
-													Remarks ({s.remarks?.length || 0})
-												</Button>
-
-												<Button
-													size="sm"
-													className="flex items-center gap-1"
-													onClick={() => {
-														setEditStage(s);
-														setIsCompleted(s.isCompleted ?? false);
-														setRemark("");
-													}}
-												>
-													<CheckSquare className="w-4 h-4" />
-													Update
-												</Button>
+											<div className="flex items-center gap-3">
+												<input
+													type="checkbox"
+													checked={s.status === "completed"}
+													onChange={() => toggleComplete(s)}
+												/>
+												<label className="text-sm select-none">
+													Mark as Completed
+												</label>
 											</div>
 										</div>
+
+										<div className="flex items-center gap-2">
+											{statusBadge(s)}
+
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={() => openRemarks(s)}
+											>
+												<MessageCircle className="w-4 h-4" />
+											</Button>
+										</div>
 									</div>
-								))}
-							</div>
-						)}
+								</div>
+							))}
+						</div>
 					</div>
-				))}
-
-			{editStage && (
-				<Dialog open={true} onOpenChange={() => setEditStage(null)}>
-					<DialogContent className="space-y-3">
-						<DialogHeader>
-							<DialogTitle className="font-semibold">Update Stage</DialogTitle>
-						</DialogHeader>
-
-						<p className="font-semibold text-lg">{editStage.name}</p>
-
-						<label className="flex items-center gap-2 text-sm font-medium">
-							<input
-								type="checkbox"
-								checked={isCompleted}
-								onChange={(e) => setIsCompleted(e.target.checked)}
-							/>
-							Mark as Completed ✅
-						</label>
-
-						<DialogFooter>
-							<Button onClick={saveChanges} disabled={loading}>
-								{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+				))
 			)}
 
-			{remarkSheetStage && (
-				<Sheet open={true} onOpenChange={() => setRemarkSheetStage(null)}>
-					<SheetContent className="w-[420px] overflow-auto p-2">
+			{/* =========================================================
+			    REMARKS SHEET
+			========================================================= */}
+			{remarkStage && (
+				<Sheet open onOpenChange={() => setRemarkStage(null)}>
+					<SheetContent className="w-[420px] p-3">
 						<SheetHeader>
-							<SheetTitle className="font-semibold text-lg">
-								Conversation — {remarkSheetStage.name}
+							<SheetTitle className="text-lg font-semibold">
+								Remarks — {remarkStage.StageTemplate?.name}
 							</SheetTitle>
 						</SheetHeader>
 
-						<div className="mt-4 space-y-3 px-1 max-h-[78vh] overflow-y-auto">
-							{remarkSheetStage.remarks?.length > 0 ? (
-								remarkSheetStage.remarks.map((r) => {
-									let bubble = "";
-									let align = "justify-start";
-									let name = "Admin";
-
-									if (r.by === "contractor") {
-										bubble = "bg-blue-100 border-blue-300 text-blue-700";
-										align = "justify-end";
-										name = "You";
-									} else if (r.by === "client") {
-										bubble = "bg-green-100 border-green-300 text-green-700";
-										name = "Client";
-									} else {
-										bubble = "bg-red-100 border-red-300 text-red-700";
-										name = "Admin";
-									}
-
-									return (
-										<div key={r.id} className={`flex w-full ${align}`}>
-											<div
-												className={`max-w-[80%] p-3 rounded-xl shadow-sm border ${bubble}`}
-											>
-												<p className="text-sm font-medium">{r.message}</p>
-												<p className="text-[11px] mt-1 flex justify-between text-gray-600">
-													<span>{name}</span>
-													<span>{formatDate(r.createdAt)}</span>
-												</p>
-											</div>
-										</div>
-									);
-								})
+						<div className="mt-4 max-h-[70vh] overflow-y-auto space-y-4">
+							{remarkLoading ? (
+								<div className="flex justify-center py-10">
+									<Loader2 className="w-6 h-6 animate-spin" />
+								</div>
 							) : (
-								<p className="text-gray-500 text-sm">No remarks yet</p>
-							)}
+								<>
+									{remarks.map((r) => {
+										const isMe = r.by === "contractor";
 
-							<div ref={remarkEndRef} />
+										return (
+											<div
+												key={r.id}
+												className={`flex ${
+													isMe ? "justify-end" : "justify-start"
+												}`}
+											>
+												<div
+													className={`px-3 py-2 rounded-xl shadow max-w-[75%] border ${
+														isMe
+															? "bg-blue-100 border-blue-300"
+															: r.by === "admin"
+																? "bg-red-100 border-red-300"
+																: "bg-green-100 border-green-300"
+													}`}
+												>
+													<p className="text-sm">{r.message}</p>
+													<p className="text-[11px] text-gray-600 mt-1 flex justify-between">
+														<span>{isMe ? "You" : r.by}</span>
+														<span>{formatDate(r.createdAt)}</span>
+													</p>
+												</div>
+											</div>
+										);
+									})}
+
+									<div ref={remarkEndRef} />
+								</>
+							)}
 						</div>
 
-						<Separator className="my-3" />
+						<Separator className="my-4" />
 
 						<Textarea
-							placeholder="Write your message..."
+							className="h-20"
+							placeholder="Write a message..."
 							value={newRemark}
 							onChange={(e) => setNewRemark(e.target.value)}
-							className="h-20"
 						/>
 
 						<SheetFooter>
-							<Button onClick={submitRemark} disabled={remarkLoading} className="w-full">
-								{remarkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+							<Button
+								onClick={sendRemark}
+								className="w-full"
+								disabled={remarkLoading}
+							>
+								{remarkLoading ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : (
+									"Send"
+								)}
 							</Button>
 						</SheetFooter>
 					</SheetContent>
@@ -345,3 +355,4 @@ export default function ContractorStages() {
 		</div>
 	);
 }
+

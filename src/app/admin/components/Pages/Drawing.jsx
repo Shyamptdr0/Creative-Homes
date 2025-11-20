@@ -1,21 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-	Dialog, DialogContent, DialogHeader, DialogTitle
-} from "@/components/ui/dialog";
-import {
-	Accordion, AccordionItem, AccordionTrigger, AccordionContent
-} from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import {
-	Table, TableBody, TableCell, TableHead, TableHeader, TableRow
-} from "@/components/ui/table";
-import { Loader2, ImageIcon, X } from "lucide-react";
 
-// ✅ Delete Confirmation Dialog imports
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -24,328 +19,390 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-	AlertDialogDescription,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
+
+import { Loader2, FolderOpen, ImagePlus } from "lucide-react";
 
 export default function AdminDrawingsPage() {
 	const [projects, setProjects] = useState([]);
 	const [drawings, setDrawings] = useState([]);
-	const [title, setTitle] = useState("");
+
 	const [projectId, setProjectId] = useState("");
-	const [files, setFiles] = useState([]);
-	const [previewUrls, setPreviewUrls] = useState([]);
+
+	// FILE STATES
+	const [folderFiles, setFolderFiles] = useState([]);
+	const [singleFiles, setSingleFiles] = useState([]);
+
+	const [folderPreview, setFolderPreview] = useState([]);
+	const [singlePreview, setSinglePreview] = useState([]);
+
+	const [folderDisabled, setFolderDisabled] = useState(false);
+	const [singleDisabled, setSingleDisabled] = useState(false);
+
+	const [selectedProject, setSelectedProject] = useState(null);
+	const [selectedProjectDrawings, setSelectedProjectDrawings] = useState([]);
+
+	// PREVIEW CAROUSEL
+	const [previewIndex, setPreviewIndex] = useState(null);
+	const [openPreview, setOpenPreview] = useState(false);
+
 	const [loading, setLoading] = useState(false);
 
-	// Edit State
-	const [editModal, setEditModal] = useState(false);
-	const [editData, setEditData] = useState({ id: "", title: "", projectId: "", fileUrl: "" });
-	const [editFile, setEditFile] = useState(null);
-
-	// View modal
-	const [viewModal, setViewModal] = useState(false);
-	const [viewFile, setViewFile] = useState("");
+	useEffect(() => {
+		loadData();
+	}, []);
 
 	const loadData = async () => {
-		const [projRes, drawRes] = await Promise.all([
-			fetch("/api/projects"),
-			fetch("/api/drawings"),
-		]);
+		const p = await fetch("/api/projects");
+		const d = await fetch("/api/drawings");
 
-		const projJson = await projRes.json();
-		const drawJson = await drawRes.json();
+		const proj = await p.json();
+		const draw = await d.json();
 
-		setProjects(projJson.projects || []);
-		setDrawings(Array.isArray(drawJson) ? drawJson : []);
+		setProjects(proj.projects || []);
+		setDrawings(draw);
 	};
 
-	useEffect(() => { loadData(); }, []);
+	const allowed = ["image/", "video/"];
 
-	// ✅ Allow only images/videos
-	const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg", "image/gif", "video/mp4", "video/mov"];
+	/* -------- Folder Upload -------- */
+	const handleFolderSelect = (e) => {
+		const files = Array.from(e.target.files).filter((f) =>
+			allowed.some((t) => f.type.startsWith(t))
+		);
 
-	const handleFileSelect = (e) => {
-		const selectedFiles = Array.from(e.target.files);
-		const validFiles = selectedFiles.filter(file => allowedTypes.includes(file.type));
-
-		if (validFiles.length !== selectedFiles.length) {
-			alert("❌ Only images & videos allowed!");
-		}
-
-		setFiles(validFiles);
-		setPreviewUrls(validFiles.map(file => URL.createObjectURL(file)));
+		setFolderFiles(files);
+		setFolderPreview(files.map((f) => URL.createObjectURL(f)));
+		setSingleDisabled(files.length > 0);
 	};
 
+	/* -------- Single Upload -------- */
+	const handleSingleSelect = (e) => {
+		const files = Array.from(e.target.files).filter((f) =>
+			allowed.some((t) => f.type.startsWith(t))
+		);
+
+		setSingleFiles(files);
+		setSinglePreview(files.map((f) => URL.createObjectURL(f)));
+		setFolderDisabled(files.length > 0);
+	};
+
+	/* -------- Upload to Server -------- */
 	const handleUpload = async () => {
-		if (!title || !projectId || files.length === 0)
-			return alert("All fields required");
+		if (!projectId) return alert("Select project");
+		const all = [...folderFiles, ...singleFiles];
+		if (all.length === 0) return alert("Upload files first");
 
 		setLoading(true);
 
 		try {
-			for (const file of files) {
-				const cloudForm = new FormData();
-				cloudForm.append("file", file);
+			const fd = new FormData();
+			all.forEach((f) => fd.append("files", f));
 
-				const cloudRes = await fetch("/api/drawings/upload", { method: "POST", body: cloudForm });
-				const cloud = await cloudRes.json();
+			const cloud = await fetch("/api/drawings/upload", { method: "POST", body: fd });
+			const { urls, names } = await cloud.json();
 
-				const form = new FormData();
-				form.append("title", title);
-				form.append("projectId", projectId);
-				form.append("fileUrl", cloud.url);
+			const save = new FormData();
+			save.append("projectId", Number(projectId));
+			save.append("fileUrls", JSON.stringify(urls));
+			save.append("fileNames", JSON.stringify(names));
 
-				await fetch("/api/drawings", { method: "POST", body: form });
-			}
+			await fetch("/api/drawings", { method: "POST", body: save });
 
-			// ✅ Do NOT reset title/projectId
-			// Only reset the files and previews if you want to clear selection
-			setFiles([]);
-			setPreviewUrls([]);
+			resetForm();
 			loadData();
-		} catch (err) {
-			console.error("Upload failed:", err);
-			alert("Upload failed, try again.");
-		} finally {
-			setLoading(false);
+		} catch (e) {
+			console.log(e);
+			alert("Upload failed");
 		}
+
+		setLoading(false);
 	};
 
-	const deleteDrawing = async (id) => {
+	const resetForm = () => {
+		setProjectId("");
+		setFolderFiles([]);
+		setSingleFiles([]);
+		setFolderPreview([]);
+		setSinglePreview([]);
+
+		setFolderDisabled(false);
+		setSingleDisabled(false);
+
+		document.getElementById("folderInput").value = "";
+		document.getElementById("singleInput").value = "";
+	};
+
+	/* -------- Filter Drawings -------- */
+	const filterProjectDrawings = (id) => {
+		const pid = Number(id);
+		setSelectedProject(pid);
+		setSelectedProjectDrawings(drawings.filter((d) => Number(d.projectId) === pid));
+	};
+
+	/* -------- Delete One -------- */
+	const deleteDrawingConfirmed = async (id) => {
 		await fetch(`/api/drawings/${id}`, { method: "DELETE" });
 		loadData();
+		if (selectedProject) filterProjectDrawings(selectedProject);
 	};
 
-	const openEdit = (d) => {
-		setEditData(d);
-		setEditModal(true);
-	};
-
-	const saveEdit = async () => {
-		let newUrl = editData.fileUrl;
-
-		if (editFile) {
-			const cloudForm = new FormData();
-			cloudForm.append("file", editFile);
-			const res = await fetch("/api/drawings/upload", { method: "POST", body: cloudForm });
-			const cloud = await res.json();
-			newUrl = cloud.url;
-		}
-
-		const form = new FormData();
-		form.append("title", editData.title);
-		form.append("projectId", editData.projectId);
-		form.append("fileUrl", newUrl);
-
-		await fetch(`/api/drawings/${editData.id}`, { method: "PUT", body: form });
-
-		setEditModal(false);
-		setEditFile(null);
+	/* -------- Delete All -------- */
+	const deleteAllConfirmed = async () => {
+		await fetch(`/api/drawings/delete-all/${selectedProject}`, { method: "DELETE" });
 		loadData();
+		setSelectedProjectDrawings([]);
 	};
 
-	const openView = (url) => {
-		setViewFile(url);
-		setViewModal(true);
-	};
+	const isImage = (u) => /\.(jpg|jpeg|png|gif|webp)$/i.test(u);
+	const projectDetails =
+		selectedProject ? projects.find((p) => p.id === selectedProject) : null;
 
-	const isImage = (url) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
-	const isVideo = (url) => /\.(mp4|mov)$/i.test(url);
+	/* -------- Carousel Controls -------- */
+	const nextImage = () => {
+		setPreviewIndex((prev) =>
+			prev + 1 < selectedProjectDrawings.length ? prev + 1 : 0
+		);
+	};
+	const prevImage = () => {
+		setPreviewIndex((prev) =>
+			prev - 1 >= 0 ? prev - 1 : selectedProjectDrawings.length - 1
+		);
+	};
 
 	return (
-		<div className="p-6 space-y-6">
-			<h1 className="text-2xl font-bold">Manage Drawings</h1>
+		<div className="p-6 space-y-10">
+			<h1 className="text-3xl font-bold">Manage Drawings</h1>
 
-			{/* Upload Form */}
-			<div className="grid gap-3 md:grid-cols-4">
-				<Input
-					placeholder="Drawing title"
-					value={title}
-					onChange={(e) => setTitle(e.target.value)}
-				/>
+			{/* ================= Upload Controls ================= */}
+			<div className="flex flex-col md:flex-row md:items-center gap-3 bg-white p-4 rounded-lg shadow border">
 
+				{/* Select Project */}
 				<select
-					className="border p-2 rounded"
+					className="border p-2 rounded w-full md:w-48 text-sm"
 					value={projectId}
 					onChange={(e) => setProjectId(e.target.value)}
 				>
-					<option value="">Select Project</option>
-					{projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+					<option value="">Project</option>
+					{projects.map((p) => (
+						<option key={p.id} value={p.id}>
+							{p.projectUid}
+						</option>
+					))}
 				</select>
 
-				<Input
-					type="file"
-					multiple
-					onChange={handleFileSelect}
-					accept="image/*,video/*"
-				/>
+				{/* Folder Upload */}
+				<label
+					className={`flex items-center gap-2 border p-2 rounded cursor-pointer text-sm w-full md:w-48 
+						${folderDisabled ? "bg-gray-200 cursor-not-allowed" : ""}`}
+				>
+					<FolderOpen className="text-blue-600 w-4 h-4" />
+					<span>Folder</span>
+					<input
+						id="folderInput"
+						type="file"
+						multiple
+						webkitdirectory=""
+						directory=""
+						disabled={folderDisabled}
+						accept="image/*,video/*"
+						onChange={handleFolderSelect}
+						className="hidden"
+					/>
+				</label>
 
+				{/* Single Image Upload */}
+				<label
+					className={`flex items-center gap-2 border p-2 rounded cursor-pointer text-sm w-full md:w-48 
+						${singleDisabled ? "bg-gray-200 cursor-not-allowed" : ""}`}
+				>
+					<ImagePlus className="text-green-600 w-4 h-4" />
+					<span>Image</span>
+					<input
+						id="singleInput"
+						type="file"
+						disabled={singleDisabled}
+						accept="image/*,video/*"
+						onChange={handleSingleSelect}
+						className="hidden"
+					/>
+				</label>
+
+				{/* Upload Button */}
 				<Button
+					className="md:ml-auto px-4 py-2 text-sm"
 					onClick={handleUpload}
-					disabled={loading}
+					disabled={loading || (!folderFiles.length && !singleFiles.length)}
 				>
 					{loading ? <Loader2 className="animate-spin" /> : "Upload"}
 				</Button>
 			</div>
 
-			{/* Previews (before uploading) */}
-			{previewUrls.length > 0 && (
-				<div className="flex gap-2 flex-wrap mt-2">
-					{previewUrls.map((src, idx) => (
-						<div key={idx} className="relative">
-							{isVideo(src) ? (
-								<video
-									autoPlay
-									loop
-									muted
-									src={src}
-									className="w-20 h-20 object-cover rounded border"
-								/>
-							) : (
-								<img
-									src={src}
-									className="w-20 h-20 object-cover rounded border"
-								/>
-							)}
-							<X
-								className="absolute top-1 right-1 bg-white cursor-pointer"
-								size={16}
-								onClick={() => {
-									// Remove file and preview without resetting form
-									setFiles(files.filter((_, i) => i !== idx));
-									setPreviewUrls(previewUrls.filter((_, i) => i !== idx));
-								}}
-							/>
-						</div>
+			{/* ================= Small Previews ================= */}
+			{folderPreview.length > 0 || singlePreview.length > 0 ? (
+				<div className="grid grid-cols-6 gap-3 mt-3">
+					{folderPreview.concat(singlePreview).map((src, i) => (
+						<img key={i} src={src} className="w-full h-20 rounded border object-cover shadow-sm" />
 					))}
+				</div>
+			) : null}
+
+			{/* ================= Drawings Section ================= */}
+			<h2 className="text-xl font-semibold">Project Drawings</h2>
+
+			<select
+				className="border p-2 rounded w-full md:w-48 text-sm"
+				value={selectedProject || ""}
+				onChange={(e) => filterProjectDrawings(e.target.value)}
+			>
+				<option value="">Select Project</option>
+				{projects.map((p) => (
+					<option key={p.id} value={p.id}>
+						{p.projectUid} - {p.title}
+					</option>
+				))}
+			</select>
+
+			{/* ================= Project Details ================= */}
+			{projectDetails && (
+				<div className="bg-white border rounded-lg p-4 shadow mt-4">
+					<h3 className="font-semibold text-lg mb-2">Project Details</h3>
+
+					<div className="grid grid-cols-2 gap-4 text-sm">
+						<p><strong>Client ID:</strong> {projectDetails.client?.clientId}</p>
+						<p><strong>Client Name:</strong> {projectDetails.client?.name}</p>
+						<p><strong>Contractor ID:</strong> {projectDetails.contractor?.contractorId}</p>
+						<p><strong>Contractor Name:</strong> {projectDetails.contractor?.name}</p>
+					</div>
 				</div>
 			)}
 
+			{/* ================= Drawing List ================= */}
+			{selectedProject && (
+				<Card className="mt-4">
+					<CardHeader className="flex justify-between items-center">
+						<CardTitle>Drawings</CardTitle>
 
-			<h2 className="text-lg font-semibold">Uploaded Drawings (Project-wise)</h2>
+						{selectedProjectDrawings.length > 0 && (
+							<AlertDialog>
+								<AlertDialogTrigger asChild>
+									<Button variant="destructive" size="sm">Delete All</Button>
+								</AlertDialogTrigger>
 
-			<div className="space-y-8">
-				{projects.map((project) => {
-					const drawingsForProject = drawings.filter((d) => d.projectId == project.id);
-					if (!drawingsForProject.length) return null;
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+									</AlertDialogHeader>
+									<AlertDialogFooter>
+										<AlertDialogCancel>Cancel</AlertDialogCancel>
+										<AlertDialogAction onClick={deleteAllConfirmed}>Delete</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+						)}
+					</CardHeader>
 
-					return (
-						<div key={project.id} className="space-y-2">
-							<h3 className="text-xl font-bold">{project.title}</h3>
+					<CardContent>
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead>Preview</TableHead>
+									<TableHead>Title</TableHead>
+									<TableHead>Date</TableHead>
+									<TableHead>Action</TableHead>
+								</TableRow>
+							</TableHeader>
 
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Preview</TableHead>
-										<TableHead>Title</TableHead>
-										<TableHead>Actions</TableHead>
+							<TableBody>
+								{selectedProjectDrawings.map((d, i) => (
+									<TableRow key={d.id}>
+										<TableCell>
+											<img
+												src={d.fileUrl}
+												className="w-16 h-16 rounded cursor-pointer object-cover"
+												onClick={() => {
+													setPreviewIndex(i);
+													setOpenPreview(true);
+												}}
+											/>
+										</TableCell>
+
+										<TableCell>{d.title}</TableCell>
+
+										<TableCell>{new Date(d.uploadedAt).toLocaleString()}</TableCell>
+
+										<TableCell>
+											<AlertDialog>
+												<AlertDialogTrigger asChild>
+													<Button size="sm" variant="destructive">Delete</Button>
+												</AlertDialogTrigger>
+
+												<AlertDialogContent>
+													<AlertDialogHeader>
+														<AlertDialogTitle>Delete this image?</AlertDialogTitle>
+													</AlertDialogHeader>
+													<AlertDialogFooter>
+														<AlertDialogCancel>Cancel</AlertDialogCancel>
+														<AlertDialogAction onClick={() => deleteDrawingConfirmed(d.id)}>
+															Delete
+														</AlertDialogAction>
+													</AlertDialogFooter>
+												</AlertDialogContent>
+											</AlertDialog>
+										</TableCell>
 									</TableRow>
-								</TableHeader>
+								))}
+							</TableBody>
+						</Table>
+					</CardContent>
+				</Card>
+			)}
 
-								<TableBody>
-									{drawingsForProject.map((d) => (
-										<TableRow key={d.id}>
-											<TableCell>
-												{isImage(d.fileUrl) ? (
-													<img
-														src={d.fileUrl}
-														className="w-14 h-14 rounded cursor-pointer border"
-														onClick={() => openView(d.fileUrl)}
-													/>
-												) : isVideo(d.fileUrl) ? (
-													<video
-														src={d.fileUrl}
-														className="w-14 h-14 rounded cursor-pointer border"
-														onClick={() => openView(d.fileUrl)}
-													/>
-												) : (
-													<div
-														className="flex items-center gap-1 cursor-pointer text-blue-600"
-														onClick={() => openView(d.fileUrl)}
-													>
-														<ImageIcon /> File
-													</div>
-												)}
-											</TableCell>
+			{/* ================= Carousel Preview Modal ================= */}
+			{openPreview && (
+				<Dialog open={openPreview} onOpenChange={setOpenPreview}>
+					<DialogContent className="max-w-screen-md">
+						<DialogHeader>
+							<DialogTitle>
+								{selectedProjectDrawings[previewIndex]?.title}
+							</DialogTitle>
+						</DialogHeader>
 
-											<TableCell>{d.title}</TableCell>
+						<div className="bg-gray-100 p-4 rounded flex flex-col items-center">
 
-											<TableCell className="flex gap-2">
-												<Button size="sm" onClick={() => openEdit(d)}>Edit</Button>
+							{/* IMAGE OR VIDEO */}
+							{isImage(selectedProjectDrawings[previewIndex].fileUrl) ? (
+								<img
+									src={selectedProjectDrawings[previewIndex].fileUrl}
+									className="max-h-[70vh] rounded"
+								/>
+							) : (
+								<video
+									controls
+									className="max-h-[70vh] rounded"
+									src={selectedProjectDrawings[previewIndex].fileUrl}
+								/>
+							)}
 
-												<AlertDialog>
-													<AlertDialogTrigger asChild>
-														<Button size="sm" variant="destructive">Delete</Button>
-													</AlertDialogTrigger>
-
-													<AlertDialogContent>
-														<AlertDialogHeader>
-															<AlertDialogTitle>Are you sure?</AlertDialogTitle>
-															<AlertDialogDescription>
-																This will permanently delete the file.
-															</AlertDialogDescription>
-														</AlertDialogHeader>
-
-														<AlertDialogFooter>
-															<AlertDialogCancel>Cancel</AlertDialogCancel>
-															<AlertDialogAction onClick={() => deleteDrawing(d.id)}>
-																Yes, Delete
-															</AlertDialogAction>
-														</AlertDialogFooter>
-													</AlertDialogContent>
-												</AlertDialog>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
+							{/* NEXT / PREV */}
+							<div className="flex gap-4 mt-4">
+								<Button variant="outline" onClick={prevImage}>Previous</Button>
+								<Button variant="outline" onClick={nextImage}>Next</Button>
+							</div>
 						</div>
-					);
-				})}
-			</div>
-
-
-			{/* View File Dialog */}
-			<Dialog open={viewModal} onOpenChange={setViewModal}>
-				<DialogContent className="max-w-4xl">
-					<DialogHeader><DialogTitle>Preview</DialogTitle></DialogHeader>
-
-					{isImage(viewFile) && (
-						<img src={viewFile} className="max-h-[80vh] w-auto mx-auto border rounded" />
-					)}
-
-					{isVideo(viewFile) && (
-						<video src={viewFile} controls className="w-full max-h-[80vh] rounded border" />
-					)}
-				</DialogContent>
-			</Dialog>
-
-			{/* Edit Modal */}
-			<Dialog open={editModal} onOpenChange={setEditModal}>
-				<DialogContent>
-					<DialogHeader><DialogTitle>Edit Drawing</DialogTitle></DialogHeader>
-
-					<Input
-						value={editData.title}
-						onChange={(e) => setEditData({ ...editData, title: e.target.value })}
-						className="mb-3"
-					/>
-
-					<select
-						className="border p-2 rounded mb-3"
-						value={editData.projectId}
-						onChange={(e) => setEditData({ ...editData, projectId: e.target.value })}
-					>
-						{projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-					</select>
-
-					<Input type="file" onChange={(e) => setEditFile(e.target.files[0])} accept="image/*,video/*" />
-
-					<Button className="mt-4 w-full" onClick={saveEdit}>
-						Save Changes
-					</Button>
-				</DialogContent>
-			</Dialog>
+					</DialogContent>
+				</Dialog>
+			)}
 		</div>
 	);
 }

@@ -1,43 +1,52 @@
-// /api/drawings/[id]/route.js
 import { NextResponse } from "next/server";
 import Drawing from "@/models/Drawing";
 import { deleteFromCloudinary } from "@/lib/deleteFromCloudinary";
 import "@/lib/db";
 
-export async function DELETE(req, ctx) {
+// ========================= DELETE =========================
+export async function DELETE(req, { params }) {
 	try {
-		const { id } = ctx.params;
+		// ⬅ REAL FIX
+		const { id } = await params;
+
+		if (!id)
+			return NextResponse.json({ success: false, error: "Invalid ID" }, { status: 400 });
 
 		const drawing = await Drawing.findByPk(id);
+
 		if (!drawing)
 			return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
-		// ✅ delete from cloudinary
+		// Delete Cloudinary file
 		if (drawing.fileUrl) await deleteFromCloudinary(drawing.fileUrl);
 
 		await drawing.destroy();
+
 		return NextResponse.json({ success: true, message: "Deleted successfully" });
 
 	} catch (err) {
-		console.log("DELETE drawing", err);
+		console.log("DELETE drawing error:", err);
 		return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
 	}
 }
 
-export async function PUT(req, ctx) {
+// ========================= UPDATE =========================
+export async function PUT(req, { params }) {
 	try {
-		const { id } = ctx.params;
-		const form = await req.formData();
+		// ⬅ REAL FIX
+		const { id } = await params;
 
+		const form = await req.formData();
 		const title = form.get("title");
 		const projectId = form.get("projectId");
 		const newFileUrl = form.get("fileUrl");
 
 		const drawing = await Drawing.findByPk(id);
+
 		if (!drawing)
 			return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
-		// ✅ If file replaced, remove old
+		// Delete old file if replaced
 		if (newFileUrl && newFileUrl !== drawing.fileUrl) {
 			if (drawing.fileUrl) await deleteFromCloudinary(drawing.fileUrl);
 		}
@@ -51,7 +60,7 @@ export async function PUT(req, ctx) {
 		return NextResponse.json({ success: true, drawing });
 
 	} catch (err) {
-		console.log("PUT drawing error", err);
+		console.log("PUT drawing error:", err);
 		return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
 	}
 }

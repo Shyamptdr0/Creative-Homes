@@ -1,9 +1,13 @@
+// ✅ /app/api/queries/route.js
+
+import { NextResponse } from "next/server";
 import Query from "@/models/Query";
 import Client from "@/models/Client";
 import Contractor from "@/models/Contractor";
 import Project from "@/models/Project";
-import { NextResponse } from "next/server";
-import { Op } from "sequelize";
+import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
+import "@/lib/db";
+import {Op} from "sequelize";
 
 export async function GET(req) {
 	try {
@@ -12,7 +16,6 @@ export async function GET(req) {
 
 		let where = {};
 
-		// ✅ Correct field names
 		if (type === "client") {
 			where.clientId = { [Op.ne]: null };
 		}
@@ -38,12 +41,49 @@ export async function GET(req) {
 	}
 }
 
+/* ============================================================
+   🆕 POST — Creates a Query with optional Image Upload
+============================================================ */
 export async function POST(req) {
 	try {
-		const body = await req.json();
-		const query = await Query.create(body);
-		return NextResponse.json(query);
+		const formData = await req.formData();
+
+		const message = formData.get("message");
+		const projectId = formData.get("projectId");
+		const contractorId = formData.get("contractorId");
+		const clientId = formData.get("clientId"); // still supported
+
+		const image = formData.get("image");
+
+		let imageUrl = null;
+
+		// 🆕 If file uploaded → convert to buffer -> upload to Cloudinary
+		if (image && image.name) {
+			const arrayBuffer = await image.arrayBuffer();
+			const buffer = Buffer.from(arrayBuffer);
+
+			imageUrl = await uploadToCloudinary(buffer, "queries");
+		}
+
+		// 🆕 Create query with imageUrl included
+		const query = await Query.create({
+			message,
+			projectId,
+			contractorId,
+			clientId,
+			imageUrl,
+		});
+
+		return NextResponse.json(
+			{ success: true, query },
+			{ status: 201 }
+		);
+
 	} catch (err) {
-		return NextResponse.json({ error: err.message }, { status: 500 });
+		console.error("QUERY CREATE ERROR:", err);
+		return NextResponse.json(
+			{ success: false, error: err.message },
+			{ status: 500 }
+		);
 	}
 }

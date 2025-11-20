@@ -3,15 +3,25 @@ import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
 
 export async function POST(req) {
 	try {
-		const form = await req.formData();
-		const file = form.get("file");
+		const data = await req.formData();
+		const files = data.getAll("files");
 
-		const buffer = Buffer.from(await file.arrayBuffer());
-		const url = await uploadToCloudinary(buffer, "drawings");
+		const urls = [];
+		const names = [];
 
-		return NextResponse.json({ url });
-	} catch (e) {
-		console.error("Upload error", e);
+		for (const file of files) {
+			const buffer = Buffer.from(await file.arrayBuffer());
+			const url = await uploadToCloudinary(buffer, "drawings");
+			urls.push(url);
+
+			const raw = file.name;
+			const nameOnly = raw.substring(0, raw.lastIndexOf(".")) || raw;
+			names.push(nameOnly);
+		}
+
+		return NextResponse.json({ urls, names });
+	} catch (err) {
+		console.log(err);
 		return NextResponse.json({ error: "Upload failed" }, { status: 500 });
 	}
 }

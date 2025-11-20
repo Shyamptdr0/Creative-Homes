@@ -179,8 +179,6 @@ export default function UserPage() {
 										<TableHead>Email</TableHead>
 										<TableHead>Phone</TableHead>
 										<TableHead>Address</TableHead>
-										<TableHead>Projects</TableHead>
-										<TableHead>Project Types</TableHead>
 										<TableHead>User ID</TableHead>
 										<TableHead>Password</TableHead>
 										<TableHead>Actions</TableHead>
@@ -201,19 +199,6 @@ export default function UserPage() {
 												<TableCell>{u.email}</TableCell>
 												<TableCell>{u.phone}</TableCell>
 												<TableCell>{u.address}</TableCell>
-
-												<TableCell>
-													{u.userProjects.length
-														? u.userProjects.map((p) => p.title).join(", ")
-														: "-"}
-												</TableCell>
-
-												<TableCell>
-													{u.userProjects.length
-														? u.userProjects.map((p) => p.projectTypeName).join(", ")
-														: "-"}
-												</TableCell>
-
 												<TableCell>{u.userId}</TableCell>
 
 												<TableCell>

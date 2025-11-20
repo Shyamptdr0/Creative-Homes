@@ -1,41 +1,43 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+
 import Project from "@/models/Project";
 import Client from "@/models/Client";
 import Contractor from "@/models/Contractor";
-import Stage from "@/models/Stage";
+import ProjectStage from "@/models/ProjectStage";
+import StageTemplate from "@/models/StageTemplate";
+
 import "@/lib/db";
 
 export async function GET(req) {
 	try {
+		// ---------------- TOKEN CHECK ----------------
 		const authHeader = req.headers.get("authorization");
 
-		if (!authHeader) {
+		if (!authHeader)
 			return NextResponse.json(
 				{ success: false, message: "No token provided" },
 				{ status: 401 }
 			);
-		}
 
 		const token = authHeader.split(" ")[1];
-		if (!token) {
+		if (!token)
 			return NextResponse.json(
 				{ success: false, message: "Invalid token format" },
 				{ status: 401 }
 			);
-		}
 
 		let decoded;
 		try {
 			decoded = jwt.verify(token, process.env.JWT_SECRET);
-		} catch (err) {
+		} catch {
 			return NextResponse.json(
 				{ success: false, message: "Invalid or expired token" },
 				{ status: 401 }
 			);
 		}
 
-		// ✅ Only contractor access
+		// ---------------- CONTRACTOR ACCESS ONLY ----------------
 		if (decoded.role !== "contractor") {
 			return NextResponse.json(
 				{ success: false, message: "Access denied" },
@@ -45,31 +47,51 @@ export async function GET(req) {
 
 		const contractorId = decoded.id;
 
-		// ✅ Fetch contractor's projects
+		// ---------------- FETCH CONTRACTOR PROJECTS ----------------
 		const projects = await Project.findAll({
 			where: { contractorId },
 			include: [
-				{ model: Client, as: "client", attributes: ["clientId", "name"] },
+				{ model: Client, as: "client", attributes: ["ClientId", "name"] },
 				{ model: Contractor, as: "contractor", attributes: ["id", "name"] },
 			],
-			order: [["createdAt", "DESC"]],
+			order: [["createdAt", "ASC"]],
 		});
 
-		// ✅ Fetch all stages
-		const stages = await Stage.findAll();
+		if (!projects.length) {
+			return NextResponse.json({ success: true, projects: [] });
+		}
 
-		// ✅ Attach avgProgress to each project
-		const formatted = projects.map((project) => {
-			const projectStages = stages.filter((s) => s.projectId === project.id);
+		// ---------------- FETCH ALL PROJECT STAGES ----------------
+		const projectIds = projects.map((p) => p.id);
+
+		const stages = await ProjectStage.findAll({
+			where: { projectId: projectIds },
+			include: [
+				{
+					model: StageTemplate,
+					as: "StageTemplate",
+					attributes: ["id", "name"],
+				},
+			],
+		});
+
+		// ---------------- CALCULATE PROJECT PROGRESS ----------------
+		const finalProjects = projects.map((project) => {
+			const pStages = stages.filter((s) => s.projectId === project.id);
 
 			let avgProgress = 0;
 
-			if (projectStages.length > 0) {
-				const sum = projectStages.reduce(
-					(total, stage) => total + (stage.progress || 0),
-					0
-				);
-				avgProgress = Math.round(sum / projectStages.length);
+			if (pStages.length > 0) {
+				// ✔ completed stage = 100%
+				// ✔ approved = 100%
+				// ✔ pending = 0%
+				const sum = pStages.reduce((acc, st) => {
+					if (st.isApproved) return acc + 100;
+					if (st.isCompleted) return acc + 100;
+					return acc + 0;
+				}, 0);
+
+				avgProgress = Math.round(sum / pStages.length);
 			}
 
 			return {
@@ -80,7 +102,7 @@ export async function GET(req) {
 
 		return NextResponse.json({
 			success: true,
-			projects: formatted,
+			projects: finalProjects,
 		});
 
 	} catch (error) {

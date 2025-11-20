@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, X } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ContractorQueriesPage() {
@@ -15,6 +15,10 @@ export default function ContractorQueriesPage() {
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [openProject, setOpenProject] = useState(null);
+
+	// 🆕 IMAGE STATE (only one image allowed)
+	const [imageFile, setImageFile] = useState(null);
+	const [imagePreview, setImagePreview] = useState(null);
 
 	const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
 
@@ -46,7 +50,6 @@ export default function ContractorQueriesPage() {
 		}
 	};
 
-	// ✅ Fetch only queries of this contractor’s assigned projects
 	const fetchQueries = async () => {
 		try {
 			const res = await fetch("/api/contractors/queries", {
@@ -56,7 +59,6 @@ export default function ContractorQueriesPage() {
 			let data = await res.json();
 			if (!data.success) return setQueries([]);
 
-			// newest first
 			const sorted = data.queries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 			setQueries(sorted);
 
@@ -74,26 +76,52 @@ export default function ContractorQueriesPage() {
 		}
 	}, [token]);
 
+	/* -------------------------------------------
+	   🆕 HANDLE IMAGE SELECT
+	------------------------------------------- */
+	function handleImageChange(e) {
+		const file = e.target.files[0];
+		if (!file) return;
+
+		setImageFile(file);
+		setImagePreview(URL.createObjectURL(file));
+	}
+
+	function removeImage() {
+		setImageFile(null);
+		setImagePreview(null);
+	}
+
+	/* -------------------------------------------
+	   🆕 SUBMIT QUERY WITH IMAGE SUPPORT
+	------------------------------------------- */
 	const submitQuery = async () => {
 		if (!projectId) return toast.error("Please select a project");
 		if (!message) return toast.error("Message cannot be empty");
 
 		setSaving(true);
 
+		const formData = new FormData();
+		formData.append("projectId", projectId);
+		formData.append("contractorId", contractorId);
+		formData.append("message", message);
+
+		// 🆕 Send image only if selected
+		if (imageFile) {
+			formData.append("image", imageFile);
+		}
+
 		const res = await fetch("/api/queries", {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				message,
-				projectId,
-				contractorId,
-			}),
+			body: formData
 		});
 
 		if (res.ok) {
 			toast.success("Query submitted successfully!");
 			setMessage("");
 			setProjectId("");
+			setImageFile(null);
+			setImagePreview(null);
 			fetchQueries();
 		} else {
 			toast.error("Failed to submit query");
@@ -102,7 +130,7 @@ export default function ContractorQueriesPage() {
 		setSaving(false);
 	};
 
-	// ✅ Group queries by project
+	// Group queries by project
 	const groupedQueries = queries.reduce((acc, q) => {
 		const projectName = q.Project?.title || "Unknown Project";
 		if (!acc[projectName]) acc[projectName] = [];
@@ -120,13 +148,14 @@ export default function ContractorQueriesPage() {
 				</div>
 			) : (
 				<>
-					{/* ✅ CREATE QUERY */}
+					{/* CREATE QUERY */}
 					<Card className="mb-6 shadow-sm">
 						<CardHeader>
 							<CardTitle>Create New Query</CardTitle>
 						</CardHeader>
 
 						<CardContent className="space-y-4">
+
 							<select
 								className="border rounded-lg px-3 py-2 w-full bg-white"
 								value={projectId}
@@ -147,6 +176,38 @@ export default function ContractorQueriesPage() {
 								onChange={(e) => setMessage(e.target.value)}
 							/>
 
+							{/* 🆕 IMAGE UPLOAD INPUT */}
+							<div className="space-y-2">
+								<label className="font-semibold">Upload Image (optional)</label>
+
+								<input
+									type="file"
+									accept="image/*"
+									capture="environment"
+									onChange={handleImageChange}
+									className="border rounded-lg p-2 w-full bg-white"
+								/>
+
+								{/* IMAGE PREVIEW */}
+								{imagePreview && (
+									<div className="relative w-32 h-32 mt-2">
+										<img
+											src={imagePreview}
+											alt="Preview"
+											className="w-full h-full object-cover rounded-lg border"
+										/>
+										<Button
+											size="icon"
+											variant="destructive"
+											className="absolute -top-2 -right-2 h-6 w-6"
+											onClick={removeImage}
+										>
+											<X className="h-4 w-4" />
+										</Button>
+									</div>
+								)}
+							</div>
+
 							<Button
 								onClick={submitQuery}
 								disabled={saving}
@@ -158,7 +219,7 @@ export default function ContractorQueriesPage() {
 						</CardContent>
 					</Card>
 
-					{/* ✅ GROUPED QUERIES */}
+					{/* GROUPED QUERIES */}
 					<h2 className="text-xl font-semibold mb-3">Your Queries</h2>
 
 					{Object.keys(groupedQueries).length === 0 ? (
@@ -192,8 +253,10 @@ export default function ContractorQueriesPage() {
 
 									{isOpen && (
 										<CardContent className="space-y-3 pb-4">
+
 											{projectQueries.map((q, index) => (
 												<Card key={q.id} className="border shadow-sm p-3">
+
 													<div className="flex justify-between">
 														<p className="font-semibold">Query #{index + 1}</p>
 														<span
@@ -211,6 +274,14 @@ export default function ContractorQueriesPage() {
 														<strong>Message:</strong> {q.message}
 													</p>
 
+													{/* 🆕 SHOW IMAGE IF EXISTS */}
+													{q.imageUrl && (
+														<img
+															src={q.imageUrl}
+															className="w-40 h-40 object-cover border rounded mt-2"
+														/>
+													)}
+
 													{q.reply && (
 														<p className="p-2 bg-green-50 border rounded mt-2 text-sm">
 															<strong>Reply:</strong> {q.reply}
@@ -220,8 +291,10 @@ export default function ContractorQueriesPage() {
 													<p className="text-xs text-gray-400 mt-1">
 														{new Date(q.createdAt).toLocaleString()}
 													</p>
+
 												</Card>
 											))}
+
 										</CardContent>
 									)}
 								</Card>

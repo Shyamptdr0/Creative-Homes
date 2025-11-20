@@ -129,14 +129,15 @@ export default function ProjectsPage() {
 					<TableHeader>
 						<TableRow>
 							<TableHead className="text-center">#</TableHead>
-							<TableHead>Title</TableHead>
+							<TableHead>Project Id</TableHead>
+							<TableHead>Project Title</TableHead>
 							<TableHead>Client</TableHead>
 							<TableHead>Contractor</TableHead>
-							<TableHead>Type</TableHead>
+							<TableHead>Project Type</TableHead>
 							<TableHead>Status</TableHead>
 							<TableHead>Start</TableHead>
 							<TableHead>End</TableHead>
-							<TableHead>Cost</TableHead>
+							<TableHead>Rate</TableHead>
 							<TableHead className="text-center">Actions</TableHead>
 						</TableRow>
 					</TableHeader>
@@ -161,6 +162,7 @@ export default function ProjectsPage() {
 							projects.map((p) => (
 								<TableRow key={p.id}>
 									<TableCell className="text-center font-bold">{p.serial}</TableCell>
+									<TableCell>{p.projectUid}</TableCell>
 									<TableCell>{p.title}</TableCell>
 									<TableCell>
 										{p.client?.clientId} — {p.client?.name}
@@ -196,10 +198,12 @@ export default function ProjectsPage() {
 										<Button
 											size="sm"
 											variant="destructive"
+											disabled={p.adminLocked === true}
 											onClick={() => handleDelete(p.id)}
 										>
 											Delete
 										</Button>
+
 									</TableCell>
 								</TableRow>
 							))

@@ -11,8 +11,10 @@ import "../models/Project.js";
 import "../models/Material.js";
 import "../models/Drawing.js";
 import "../models/Query.js";
-import "../models/Stage.js";
 import "../models/StageRemark.js";
+import "../models/StageTemplate.js";
+import "../models/ProjectStage.js";
+import "../models/Payment.js"
 
 dotenv.config();
 

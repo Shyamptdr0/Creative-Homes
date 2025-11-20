@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+
 import {
 	Dialog,
 	DialogContent,
@@ -24,141 +34,345 @@ import {
 
 import {
 	Table,
-	TableHeader,
-	TableRow,
-	TableHead,
 	TableBody,
 	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from "@/components/ui/table";
 
 import {
-	Select,
-	SelectTrigger,
-	SelectContent,
-	SelectItem,
-	SelectValue,
-} from "@/components/ui/select";
+	Loader2,
+	PlusCircle,
+	MessageCircle,
+	Edit,
+	Trash,
+	CheckCircle,
+	XCircle,
+	Eye
+} from "lucide-react";
 
-import { Separator } from "@/components/ui/separator";
-import { Loader2, Pencil, Trash2, MessageCircle, PlusCircle } from "lucide-react";
+export default function StageTemplatePage() {
 
-export default function StagesPage() {
-	const [stages, setStages] = useState([]);
+	/* =========================================================
+	   STATES
+	========================================================= */
 	const [projects, setProjects] = useState([]);
+	const [projectTypes, setProjectTypes] = useState([]);
+	const [stageTemplates, setStageTemplates] = useState([]);
 
-	const [addDialogOpen, setAddDialogOpen] = useState(false);
-	const [loading, setLoading] = useState(false);
+	const [loading, setLoading] = useState(true);
+	const [saving, setSaving] = useState(false);
 
+	const [autoStages, setAutoStages] = useState([]);
+	const [sheetLoading, setSheetLoading] = useState(false);
+	const [sheetOpen, setSheetOpen] = useState(false);
+
+	const [selectedProject, setSelectedProject] = useState("");
+	const [selectedStages, setSelectedStages] = useState([]);
+	const [projectSavedStages, setProjectSavedStages] = useState([]);
+
+	// unread count
+	const [unreadRemarks, setUnreadRemarks] = useState({});
+
+	// template modals
+	const [addModalOpen, setAddModalOpen] = useState(false);
+	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [name, setName] = useState("");
-	const [description, setDescription] = useState("");
-	const [projectId, setProjectId] = useState("");
+	const [projectTypeId, setProjectTypeId] = useState("");
+	const [editData, setEditData] = useState(null);
 
-	const [editingId, setEditingId] = useState(null);
-
-	const [remarkSheetStage, setRemarkSheetStage] = useState(null);
-	const [newRemark, setNewRemark] = useState("");
-
-	const [fetchLoading, setFetchLoading] = useState(true);
+	// remarks drawer
+	const [remarkDrawerOpen, setRemarkDrawerOpen] = useState(false);
+	const [remarkStage, setRemarkStage] = useState(null);
+	const [remarks, setRemarks] = useState([]);
 	const [remarkLoading, setRemarkLoading] = useState(false);
+	const [newRemark, setNewRemark] = useState("");
+	const remarkEndRef = useRef(null);
 
-	const fetchData = async () => {
-		setFetchLoading(true);
+	// reject dialog
+	const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+	const [rejectMessage, setRejectMessage] = useState("");
 
-		const st = await fetch("/api/stages").then((r) => r.json());
-		setStages(st.stages || []);
+	// NEW — View All Stages Sheet
+	const [allStagesSheet, setAllStagesSheet] = useState(false);
 
-		const pr = await fetch("/api/projects").then((r) => r.json());
-		setProjects(pr.projects || []);
-
-		setFetchLoading(false);
-	};
-
+	/* =========================================================
+	   LOAD ALL DATA
+	========================================================= */
 	useEffect(() => {
-		fetchData();
+		loadAll();
 	}, []);
 
-	const resetForm = () => {
-		setEditingId(null);
-		setName("");
-		setDescription("");
-		setProjectId("");
+	const loadAll = async () => {
+		setLoading(true);
+		await Promise.all([
+			loadProjects(),
+			loadProjectTypes(),
+			loadStageTemplates(),
+		]);
+		setLoading(false);
 	};
 
-	const addStage = async () => {
-		if (!name || !projectId) return alert("Enter name & select project");
-		setLoading(true);
+	const loadProjects = async () => {
+		const res = await fetch("/api/projects");
+		const data = await res.json();
+		if (data.success) setProjects(data.projects);
+	};
 
-		await fetch("/api/stages", {
+	const loadProjectTypes = async () => {
+		const res = await fetch("/api/project-types");
+		const data = await res.json();
+		if (data.success) setProjectTypes(data.types);
+	};
+
+	const loadStageTemplates = async () => {
+		const res = await fetch("/api/stages/stage-templates");
+		const data = await res.json();
+		if (data.success) setStageTemplates(data.stages);
+	};
+
+	const loadSavedStages = async (projectId) => {
+		const res = await fetch(`/api/project-stages/list?projectId=${projectId}`);
+		const data = await res.json();
+
+		if (data.success) {
+			setProjectSavedStages(data.stages);
+
+			const unreadMap = {};
+			data.stages.forEach((st) => {
+				unreadMap[st.id] = st.unreadRemarks || 0;
+			});
+
+			setUnreadRemarks(unreadMap);
+		}
+	};
+
+	/* =========================================================
+	   SELECT PROJECT
+	========================================================= */
+	const onProjectSelect = async (projectId) => {
+		setSelectedProject(projectId);
+		if (!projectId) return;
+
+		await loadSavedStages(projectId);
+
+		setSheetLoading(true);
+		setSheetOpen(true);
+
+		const project = projects.find((p) => Number(p.id) === Number(projectId));
+
+		const res = await fetch(
+			`/api/stages/by-project-type?projectTypeId=${project.projectTypeId}`
+		);
+
+		const data = await res.json();
+
+		if (data.success) setAutoStages(data.stages);
+
+		setSheetLoading(false);
+	};
+
+	const openAvailableStages = async () => {
+		if (!selectedProject) return;
+
+		setSheetOpen(true);
+		setSheetLoading(true);
+
+		const project = projects.find((p) => Number(p.id) === Number(selectedProject));
+
+		const res = await fetch(
+			`/api/stages/by-project-type?projectTypeId=${project.projectTypeId}`
+		);
+		const data = await res.json();
+
+		if (data.success) setAutoStages(data.stages);
+
+		setSheetLoading(false);
+	};
+
+	const toggleStage = (id) => {
+		setSelectedStages((prev) =>
+			prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+		);
+	};
+	/* =========================================================
+	   ASSIGN STAGES
+	========================================================= */
+	const assignStages = async () => {
+		if (!selectedProject) return toast.error("Select project");
+
+		setSaving(true);
+
+		const res = await fetch("/api/project-stages/create", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name, description, projectId }),
-		});
-
-		setLoading(false);
-		resetForm();
-		setAddDialogOpen(false);
-		fetchData();
-	};
-
-	const updateStage = async (id) => {
-		setLoading(true);
-
-		await fetch(`/api/stages/${id}`, {
-			method: "PUT",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name,description,projectId }),
-		});
-
-		setLoading(false);
-		resetForm();
-		setAddDialogOpen(false);
-		fetchData();
-	};
-
-	const deleteStage = async (id) => {
-		if (!confirm("Delete stage?")) return;
-		await fetch(`/api/stages/${id}`, { method: "DELETE" });
-		fetchData();
-	};
-
-	const submitRemark = async () => {
-		if (!newRemark.trim()) return alert("Enter remark");
-		setRemarkLoading(true);
-
-		await fetch(`/api/stages/${remarkSheetStage.id}`, {
-			method: "PUT",
-			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
-				remark: newRemark,
-				by: "admin", // ✅ Admin sending remark
+				projectId: selectedProject,
+				stageTemplateIds: selectedStages,
 			}),
 		});
 
-		// ✅ Instant UI update
-		setRemarkSheetStage((prev) => ({
+		const data = await res.json();
+		setSaving(false);
+
+		if (data.success) {
+			toast.success("Stages Assigned");
+			await loadSavedStages(selectedProject);
+			setSheetOpen(false);
+		}
+	};
+
+	/* =========================================================
+	   DELETE TEMPLATE
+	========================================================= */
+	const deleteStageTemplate = async (id) => {
+		if (!confirm("Delete this?")) return;
+
+		setSaving(true);
+		const res = await fetch(`/api/stages/stage-templates/${id}`, {
+			method: "DELETE",
+		});
+		const data = await res.json();
+		setSaving(false);
+
+		if (data.success) {
+			toast.success("Deleted");
+			loadStageTemplates();
+		} else toast.error(data.error);
+	};
+
+	/* =========================================================
+	   UPDATE TEMPLATE
+	========================================================= */
+	const updateStageTemplate = async () => {
+		setSaving(true);
+
+		const res = await fetch(`/api/stages/stage-templates/${editData.id}`, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(editData),
+		});
+
+		const data = await res.json();
+		setSaving(false);
+
+		if (data.success) {
+			toast.success("Updated");
+			loadStageTemplates();
+			setEditModalOpen(false);
+		}
+	};
+
+	/* =========================================================
+	   OPEN REMARKS
+	========================================================= */
+	const openRemarks = async (stage) => {
+		setRemarkStage(stage);
+		setRemarkDrawerOpen(true);
+		setRemarkLoading(true);
+
+		setUnreadRemarks((prev) => ({
 			...prev,
-			remarks: [
-				...(prev.remarks || []),
+			[stage.id]: 0,
+		}));
+
+		const res = await fetch(`/api/stages/${stage.id}/remarks`);
+		const data = await res.json();
+
+		if (data.success) setRemarks(data.remarks);
+
+		setRemarkLoading(false);
+	};
+
+	/* =========================================================
+	   SEND REMARK
+	========================================================= */
+	const sendRemark = async () => {
+		if (!newRemark.trim()) return;
+
+		const token = sessionStorage.getItem("token");
+
+		const res = await fetch(`/api/stages/${remarkStage.id}/remarks`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify({ message: newRemark }),
+		});
+
+		const data = await res.json();
+
+		if (data.success) {
+			setRemarks((prev) => [
+				...prev,
 				{
 					id: Math.random(),
 					by: "admin",
 					message: newRemark,
 					createdAt: new Date(),
 				},
-			],
-		}));
+			]);
 
-		setNewRemark("");
-		setRemarkLoading(false);
+			setNewRemark("");
+		}
 	};
 
-	const statusBadge = (s) =>
-		s.isCompleted ? (
-			<Badge className="bg-green-600 text-white">✅ Completed</Badge>
-		) : (
-			<Badge className="bg-gray-600 text-white">Not Completed</Badge>
-		);
+	/* =========================================================
+	   APPROVE / REJECT
+	========================================================= */
+	const approveStage = async (s) => {
+		const token = sessionStorage.getItem("token");
 
+		const res = await fetch(`/api/stages/${s.id}/approve`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+		});
+
+		const data = await res.json();
+
+		if (data.success) {
+			toast.success("Stage Approved");
+			loadSavedStages(selectedProject);
+		}
+	};
+
+	const rejectStage = async (s) => {
+		setRejectMessage("");
+		setRemarkStage(s);
+		setRejectDialogOpen(true);
+	};
+
+	const confirmReject = async () => {
+		if (!rejectMessage.trim()) return toast.error("Remark required");
+
+		const token = sessionStorage.getItem("token");
+
+		const res = await fetch(`/api/stages/${remarkStage.id}/reject`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify({ message: rejectMessage }),
+		});
+
+		const data = await res.json();
+
+		if (data.success) {
+			toast.success("Rejected");
+			loadSavedStages(selectedProject);
+			setRejectDialogOpen(false);
+		}
+	};
+
+	/* =========================================================
+	   FORMAT DATE
+	========================================================= */
 	const formatDate = (d) =>
 		new Date(d).toLocaleString("en-IN", {
 			day: "2-digit",
@@ -168,213 +382,498 @@ export default function StagesPage() {
 			minute: "2-digit",
 		});
 
-	// ✅ Group stages
-	const grouped = stages.reduce((acc, s) => {
-		const key = s.project?.title || "Unknown Project";
-		if (!acc[key]) acc[key] = [];
-		acc[key].push(s);
-		return acc;
-	}, {});
-
+	/* =========================================================
+	   UI START
+	========================================================= */
 	return (
-		<div className="p-6 space-y-6">
+		<div className="space-y-10">
+
+			{/* LOADING */}
+			{loading && (
+				<div className="flex items-center gap-2 text-gray-500">
+					<Loader2 className="animate-spin w-4 h-4" /> Loading...
+				</div>
+			)}
+
+			{/* HEADER AREA */}
 			<div className="flex justify-between items-center">
-				<h1 className="text-2xl font-bold tracking-tight">Project Stages (Admin)</h1>
-				<Button className="flex items-center gap-2" onClick={() => setAddDialogOpen(true)}>
-					<PlusCircle className="w-4 h-4" /> Add Stage
-				</Button>
+				<h2 className="text-xl font-bold">Stage Templates</h2>
+
+				<div className="flex gap-3">
+					{/* NEW → View Stages Button */}
+					<Button variant="outline" onClick={() => setAllStagesSheet(true)}>
+						<Eye className="w-4 h-4 mr-2" /> View Stages
+					</Button>
+
+					{/* Add Stage Template */}
+					<Button onClick={() => setAddModalOpen(true)}>
+						<PlusCircle className="w-4 mr-2" /> Add
+					</Button>
+				</div>
 			</div>
 
-			<Card className="border bg-white shadow-md rounded-xl">
-				<CardHeader>
-					<CardTitle className="font-semibold">All Stages (Grouped by Project)</CardTitle>
-				</CardHeader>
+			{/* SELECT PROJECT */}
+			<div>
+				<Label>Select Project</Label>
+				<Select value={selectedProject} onValueChange={onProjectSelect}>
+					<SelectTrigger className="w-72 mt-1">
+						<SelectValue placeholder="Choose Project" />
+					</SelectTrigger>
 
-				<CardContent className="overflow-auto max-h-[70vh] rounded-lg">
-					<Table className="border border-gray-200 rounded-lg text-sm">
-						<TableHeader className="bg-gray-100 sticky top-0 z-10 shadow-sm">
+					<SelectContent>
+						{projects.map((p) => (
+							<SelectItem key={p.id} value={String(p.id)}>
+								{p.projectUid} — {p.title}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
+
+			{/* OPEN STAGE ASSIGNMENT SHEET */}
+			{selectedProject && (
+				<Button className="mt-3" onClick={openAvailableStages}>
+					Open Available Stages
+				</Button>
+			)}
+
+			{/* ASSIGNED STAGES TABLE */}
+			{selectedProject && (
+				<div>
+					<h3 className="font-semibold mb-2">Assigned Stages</h3>
+
+					<Table>
+						<TableHeader>
 							<TableRow>
-								<TableHead>#</TableHead>
-								<TableHead>Stage Name</TableHead>
-								<TableHead>Description</TableHead>
+								<TableHead>No</TableHead>
+								<TableHead>Name</TableHead>
 								<TableHead>Status</TableHead>
-								<TableHead className="text-center">Remarks</TableHead>
-								<TableHead className="text-center">Actions</TableHead>
+								<TableHead>Actions</TableHead>
+								<TableHead>Remarks</TableHead>
 							</TableRow>
 						</TableHeader>
 
 						<TableBody>
-							{/* Loader */}
-							{fetchLoading && (
-								<TableRow>
-									<TableCell colSpan={6} className="py-6 text-center text-gray-500">
-										<Loader2 className="w-5 h-5 animate-spin inline-block mr-2" />
-										Loading stages...
+							{projectSavedStages.map((st, i) => (
+								<TableRow key={st.id}>
+									<TableCell>{i + 1}</TableCell>
+
+									<TableCell>{st.StageTemplate?.name}</TableCell>
+
+									<TableCell>
+										{st.status === "approved" && (
+											<span className="text-green-600 font-semibold">
+												Approved
+											</span>
+										)}
+										{st.status === "completed" && (
+											<span className="text-blue-600 font-semibold">
+												Completed
+											</span>
+										)}
+										{st.status === "rejected" && (
+											<span className="text-red-600 font-semibold">
+												Rejected
+											</span>
+										)}
+										{st.status === "pending" && (
+											<span className="text-gray-600 font-semibold">
+												Pending
+											</span>
+										)}
+									</TableCell>
+
+									{/* ACTION BUTTONS */}
+									<TableCell>
+										{st.status === "completed" && (
+											<div className="flex gap-2">
+												<Button size="sm" onClick={() => approveStage(st)}>
+													<CheckCircle className="w-4" />
+												</Button>
+
+												<Button
+													size="sm"
+													variant="destructive"
+													onClick={() => rejectStage(st)}
+												>
+													<XCircle className="w-4" />
+												</Button>
+											</div>
+										)}
+									</TableCell>
+
+									{/* REMARK BUTTON */}
+									<TableCell>
+										<div className="relative inline-block">
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={() => openRemarks(st)}
+											>
+												<MessageCircle className="w-4 h-4" />
+											</Button>
+
+											{/* UNREAD DOT */}
+											{unreadRemarks[st.id] > 0 && (
+												<span className="
+													absolute -top-1 -right-1
+													bg-red-600 w-3 h-3
+													rounded-full border border-white
+												"></span>
+											)}
+										</div>
 									</TableCell>
 								</TableRow>
-							)}
-
-							{/* Grouped Rows */}
-							{!fetchLoading &&
-								Object.entries(grouped).map(([project, list]) => (
-									<>
-										<TableRow className="bg-blue-50">
-											<TableCell colSpan={6} className="font-semibold text-blue-900">
-												📌 {project}
-											</TableCell>
-										</TableRow>
-
-										{list.map((s, i) => (
-											<TableRow key={s.id} className="hover:bg-gray-50 transition-all">
-												<TableCell>{i + 1}</TableCell>
-												<TableCell className="font-medium">{s.name}</TableCell>
-												<TableCell className="text-gray-600">{s.description || "-"}</TableCell>
-												<TableCell>{statusBadge(s)}</TableCell>
-
-												<TableCell className="text-center">
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() => setRemarkSheetStage(s)}
-														className="gap-1"
-													>
-														<MessageCircle className="h-4 w-4" />
-														({s.remarks?.length || 0})
-													</Button>
-												</TableCell>
-
-												<TableCell className="flex gap-2 justify-center">
-													<Button
-														size="icon"
-														variant="outline"
-														onClick={() => {
-															setEditingId(s.id);
-															setName(s.name);
-															setDescription(s.description);
-															setProjectId(s.projectId.toString());
-															setAddDialogOpen(true);
-														}}
-													>
-														<Pencil className="h-4 w-4 text-blue-600" />
-													</Button>
-
-													<Button
-														size="icon"
-														variant="destructive"
-														onClick={() => deleteStage(s.id)}
-													>
-														<Trash2 className="h-4 w-4" />
-													</Button>
-												</TableCell>
-											</TableRow>
-										))}
-									</>
-								))}
-
-							{!fetchLoading && stages.length === 0 && (
-								<TableRow>
-									<TableCell colSpan={6} className="text-center py-4 text-gray-400">
-										No stages found
-									</TableCell>
-								</TableRow>
-							)}
+							))}
 						</TableBody>
 					</Table>
-				</CardContent>
-			</Card>
+				</div>
+			)}
+			{/* =========================================================
+			    AVAILABLE STAGES SHEET (ASSIGN TO PROJECT)
+			========================================================= */}
+			<Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+				<SheetContent className="w-[520px] p-4">
+					<SheetHeader>
+						<SheetTitle>Available Stages</SheetTitle>
+					</SheetHeader>
 
-			{/* ✅ Add / Edit Stage Dialog */}
-			<Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-				<DialogContent className="space-y-4">
+					{sheetLoading ? (
+						<div className="flex justify-center py-10">
+							<Loader2 className="animate-spin w-6 h-6" />
+						</div>
+					) : (
+						<Table className="mt-4">
+							<TableHeader>
+								<TableRow>
+									<TableHead></TableHead>
+									<TableHead>Name</TableHead>
+									<TableHead>Edit</TableHead>
+									<TableHead>Delete</TableHead>
+								</TableRow>
+							</TableHeader>
+
+							<TableBody>
+								{autoStages.map((st) => (
+									<TableRow key={st.id}>
+										<TableCell>
+											<input
+												type="checkbox"
+												checked={selectedStages.includes(st.id)}
+												onChange={() => toggleStage(st.id)}
+											/>
+										</TableCell>
+
+										<TableCell>{st.name}</TableCell>
+
+										<TableCell>
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => {
+													setEditData(st);
+													setEditModalOpen(true);
+												}}
+											>
+												<Edit className="w-4 h-4" />
+											</Button>
+										</TableCell>
+
+										<TableCell>
+											<Button
+												variant="destructive"
+												size="sm"
+												onClick={() => deleteStageTemplate(st.id)}
+											>
+												<Trash className="w-4 h-4" />
+											</Button>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					)}
+
+					<SheetFooter>
+						<Button className="w-full mt-4" onClick={assignStages}>
+							Assign Selected
+						</Button>
+					</SheetFooter>
+				</SheetContent>
+			</Sheet>
+
+
+			{/* =========================================================
+			    REMARKS DRAWER
+			========================================================= */}
+			<Sheet open={remarkDrawerOpen} onOpenChange={setRemarkDrawerOpen}>
+				<SheetContent className="w-[400px] p-4">
+					<SheetHeader>
+						<SheetTitle>
+							Remarks — {remarkStage?.StageTemplate?.name}
+						</SheetTitle>
+					</SheetHeader>
+
+					{remarkLoading ? (
+						<div className="flex justify-center py-10">
+							<Loader2 className="animate-spin" />
+						</div>
+					) : (
+						<div className="mt-3 max-h-[70vh] overflow-y-auto space-y-3">
+							{remarks.map((r) => (
+								<div
+									key={r.id}
+									className={`p-3 rounded border ${
+										r.by === "admin"
+											? "bg-red-100"
+											: r.by === "contractor"
+												? "bg-blue-100"
+												: "bg-gray-100"
+									}`}
+								>
+									<p>{r.message}</p>
+									<p className="text-xs mt-2 flex justify-between">
+										<span>{r.by}</span>
+										<span>{formatDate(r.createdAt)}</span>
+									</p>
+								</div>
+							))}
+						</div>
+					)}
+
+					<Separator className="my-3" />
+
+					<Textarea
+						className="h-20"
+						value={newRemark}
+						onChange={(e) => setNewRemark(e.target.value)}
+						placeholder="Write message…"
+					/>
+
+					<SheetFooter>
+						<Button className="w-full" onClick={sendRemark}>
+							Send
+						</Button>
+					</SheetFooter>
+				</SheetContent>
+			</Sheet>
+
+
+			{/* =========================================================
+			    REJECT STAGE DIALOG
+			========================================================= */}
+			<Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>{editingId ? "Update Stage" : "Add New Stage"}</DialogTitle>
+						<DialogTitle>Reject Stage</DialogTitle>
 					</DialogHeader>
 
-					<Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Stage Name" />
-					<Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
-
-					<Select onValueChange={setProjectId} value={projectId}>
-						<SelectTrigger>
-							<SelectValue placeholder="Select Project" />
-						</SelectTrigger>
-						<SelectContent>
-							{projects.map((p) => (
-								<SelectItem key={p.id} value={p.id.toString()}>
-									{p.title} — {p.projectType?.name}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+					<div className="space-y-4">
+						<Label>Enter remark (required)</Label>
+						<Textarea
+							className="h-24"
+							value={rejectMessage}
+							onChange={(e) => setRejectMessage(e.target.value)}
+						/>
+					</div>
 
 					<DialogFooter>
-						<Button onClick={editingId ? () => updateStage(editingId) : addStage} disabled={loading}>
-							{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : editingId ? "Update Stage" : "Add Stage"}
+						<Button variant="destructive" onClick={confirmReject}>
+							Reject
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
-			{/* ✅ Remark Sheet with 3 role design */}
-			{remarkSheetStage && (
-				<Sheet open={true} onOpenChange={() => setRemarkSheetStage(null)}>
-					<SheetContent className="w-[420px] overflow-auto">
-						<SheetHeader>
-							<SheetTitle>Remarks — {remarkSheetStage.name}</SheetTitle>
-						</SheetHeader>
 
-						<div className="mt-4 space-y-3 p-2">
-							{remarkSheetStage.remarks?.length > 0 ? (
-								remarkSheetStage.remarks.map((r) => {
-									let bubble = "bg-gray-100 border-gray-300 text-gray-700";
-									let sender = "User";
+			{/* =========================================================
+			    ADD STAGE TEMPLATE MODAL
+			========================================================= */}
+			<Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Add Stage Template</DialogTitle>
+					</DialogHeader>
 
-									if (r.by === "admin") {
-										bubble = "bg-red-100 border-red-400 text-red-700";
-										sender = "Admin";
-									}
-									if (r.by === "contractor") {
-										bubble = "bg-blue-100 border-blue-400 text-blue-700";
-										sender = "Contractor";
-									}
-									if (r.by === "client") {
-										bubble = "bg-green-100 border-green-400 text-green-700";
-										sender = "Client";
-									}
-
-									return (
-										<div
-											key={r.id}
-											className={`p-3 rounded-md border shadow-sm max-w-[90%] ${bubble} ${
-												r.by === "admin" ? "ml-auto" : ""
-											}`}
-										>
-											<b>{sender}:</b>
-											<p className="text-sm mt-1">{r.message}</p>
-											<p className="text-xs opacity-70">{formatDate(r.createdAt)}</p>
-										</div>
-									);
-								})
-							) : (
-								<p className="text-sm text-gray-500">No remarks yet</p>
-							)}
-
-							<Separator />
-
-							<Textarea
-								placeholder="Write remark..."
-								value={newRemark}
-								onChange={(e) => setNewRemark(e.target.value)}
+					<div className="space-y-4">
+						<div>
+							<Label>Name</Label>
+							<Input
+								value={name}
+								onChange={(e) => setName(e.target.value)}
 							/>
-
-							<SheetFooter>
-								<Button onClick={submitRemark} disabled={remarkLoading}>
-									{remarkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Remark"}
-								</Button>
-							</SheetFooter>
 						</div>
-					</SheetContent>
-				</Sheet>
-			)}
+
+						<div>
+							<Label>Project Type</Label>
+							<Select
+								value={projectTypeId}
+								onValueChange={setProjectTypeId}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="Select Type" />
+								</SelectTrigger>
+								<SelectContent>
+									{projectTypes.map((pt) => (
+										<SelectItem
+											key={pt.id}
+											value={String(pt.id)}
+										>
+											{pt.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button
+							disabled={saving}
+							onClick={async () => {
+								if (!name || !projectTypeId)
+									return toast.error("Required fields missing");
+
+								setSaving(true);
+
+								const res = await fetch("/api/stages/stage-templates", {
+									method: "POST",
+									headers: { "Content-Type": "application/json" },
+									body: JSON.stringify({
+										name,
+										projectTypeId,
+									}),
+								});
+
+								const data = await res.json();
+								setSaving(false);
+
+								if (data.success) {
+									toast.success("Added");
+									loadStageTemplates();
+									setAddModalOpen(false);
+									setName("");
+									setProjectTypeId("");
+								}
+							}}
+						>
+							{saving ? <Loader2 className="animate-spin" /> : "Add"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+
+			{/* =========================================================
+			    EDIT TEMPLATE MODAL
+			========================================================= */}
+			<Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Edit Template</DialogTitle>
+					</DialogHeader>
+
+					<div className="space-y-4">
+						<div>
+							<Label>Name</Label>
+							<Input
+								value={editData?.name || ""}
+								onChange={(e) =>
+									setEditData({ ...editData, name: e.target.value })
+								}
+							/>
+						</div>
+
+						<div>
+							<Label>Project Type</Label>
+							<Select
+								value={String(editData?.projectTypeId || "")}
+								onValueChange={(v) =>
+									setEditData({ ...editData, projectTypeId: v })
+								}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="Select Type" />
+								</SelectTrigger>
+
+								<SelectContent>
+									{projectTypes.map((pt) => (
+										<SelectItem key={pt.id} value={String(pt.id)}>
+											{pt.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button disabled={saving} onClick={updateStageTemplate}>
+							{saving ? <Loader2 className="animate-spin" /> : "Update"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+
+
+			{/* =========================================================
+			    🆕 VIEW ALL STAGES — GROUPED BY PROJECT TYPE
+			========================================================= */}
+			{/* ========================================================= 🆕 VIEW ALL STAGES — GROUPED BY PROJECT TYPE ========================================================= */}
+			<Sheet open={allStagesSheet} onOpenChange={setAllStagesSheet}>
+				<SheetContent className="w-[480px] p-5 overflow-y-auto">
+					<SheetHeader>
+						<SheetTitle>All Stage Templates</SheetTitle>
+					</SheetHeader>
+
+					<div className="mt-6 space-y-6">
+						{projectTypes.map((pt) => {
+							const filtered = stageTemplates.filter((s) => s.projectTypeId === pt.id);
+							if (filtered.length === 0) return null;
+
+							return (
+								<div key={pt.id} className="border rounded-lg p-4 shadow-sm">
+									<h3 className="font-bold text-lg mb-3">{pt.name}</h3>
+
+									{filtered.map((st) => (
+										<div
+											key={st.id}
+											className="p-2 border-b last:border-none flex justify-between items-center"
+										>
+											<span>{st.name}</span>
+
+											<div className="flex gap-2">
+												{/* EDIT BUTTON */}
+												<Button
+													size="sm"
+													variant="outline"
+													onClick={() => {
+														setEditData(st);
+														setEditModalOpen(true);
+													}}
+												>
+													<Edit className="w-4 h-4" />
+												</Button>
+
+												{/* DELETE BUTTON */}
+												<Button
+													size="sm"
+													variant="destructive"
+													onClick={() => deleteStageTemplate(st.id)}
+												>
+													<Trash className="w-4 h-4" />
+												</Button>
+											</div>
+										</div>
+									))}
+								</div>
+							);
+						})}
+					</div>
+				</SheetContent>
+			</Sheet>
+
 		</div>
 	);
 }
