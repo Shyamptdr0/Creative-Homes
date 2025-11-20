@@ -196,7 +196,7 @@ export default function AdminDrawingsPage() {
 					<option value="">Project</option>
 					{projects.map((p) => (
 						<option key={p.id} value={p.id}>
-							{p.projectUid}
+							{p.projectUid} - {p.title}
 						</option>
 					))}
 				</select>

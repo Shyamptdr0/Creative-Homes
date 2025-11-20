@@ -1,3 +1,4 @@
+// models/ProjectStage.js
 import { DataTypes } from "sequelize";
 import sequelize from "../lib/db.js";
 
@@ -11,6 +12,13 @@ const ProjectStage = sequelize.define("ProjectStage", {
 	projectId: { type: DataTypes.INTEGER, allowNull: false },
 	stageTemplateId: { type: DataTypes.INTEGER, allowNull: false },
 
+	// NEW FIELD
+	floorName: {
+		type: DataTypes.STRING,
+		allowNull: false,
+	},
+
+
 	contractorId: { type: DataTypes.INTEGER, allowNull: true },
 
 	status: {
@@ -22,27 +30,19 @@ const ProjectStage = sequelize.define("ProjectStage", {
 	timestamps: true,
 });
 
-// Project
-ProjectStage.belongsTo(Project, {
-	foreignKey: "projectId",
-	as: "project",
-});
+// Relations
+ProjectStage.belongsTo(Project, { foreignKey: "projectId", as: "project" });
+ProjectStage.belongsTo(StageTemplate, { foreignKey: "stageTemplateId", as: "StageTemplate" });
 
-// Template
-ProjectStage.belongsTo(StageTemplate, {
-	foreignKey: "stageTemplateId",
-	as: "StageTemplate",
-});
-
-// Remarks — 🔥 REAL FIX IS HERE
+// Remarks
 ProjectStage.hasMany(StageRemark, {
 	foreignKey: "projectStageId",
-	as: "remarks",       // <--- THIS ALIAS YOU WANT
+	as: "remarks",
 });
 
 StageRemark.belongsTo(ProjectStage, {
 	foreignKey: "projectStageId",
-	as: "projectStage",  // this is correct
+	as: "projectStage",
 });
 
 export default ProjectStage;

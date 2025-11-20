@@ -7,27 +7,18 @@ export async function PUT(req, context) {
 	try {
 		// ⭐ FIX: unwrap params Promise
 		const { id } = await context.params;
-		const stageId = id;
-
-		// ⭐ Read body safely
-		let body = {};
-		try {
-			body = await req.json();
-		} catch {
-			body = {};
-		}
+		const body = await req.json();
 
 		// ⭐ Token check
-		const authHeader = req.headers.get("authorization");
-		if (!authHeader) {
+		const auth = req.headers.get("authorization");
+		if (!auth) {
 			return NextResponse.json(
 				{ success: false, message: "Missing token" },
 				{ status: 401 }
 			);
 		}
 
-		const token = authHeader.split(" ")[1];
-
+		const token = auth.split(" ")[1];
 		let user;
 		try {
 			user = verifyToken(token);
@@ -38,7 +29,7 @@ export async function PUT(req, context) {
 			);
 		}
 
-		// ⭐ Only contractor can mark complete
+		// Only contractor allowed
 		if (user.role !== "contractor") {
 			return NextResponse.json(
 				{ success: false, message: "Unauthorized" },
@@ -46,8 +37,8 @@ export async function PUT(req, context) {
 			);
 		}
 
-		// ⭐ Stage check
-		const stage = await ProjectStage.findByPk(stageId);
+		// ⭐ Fetch Stage
+		const stage = await ProjectStage.findByPk(id);
 		if (!stage) {
 			return NextResponse.json(
 				{ success: false, message: "Stage not found" },
@@ -56,12 +47,13 @@ export async function PUT(req, context) {
 		}
 
 		// ⭐ Status update
-		await stage.update({ status: "completed" });
+		const newStatus = body.status === "completed" ? "completed" : "pending";
+		await stage.update({ status: newStatus });
 
-		// ⭐ Optional remark
+		// ⭐ Remark optional
 		if (body.message?.trim()) {
 			await StageRemark.create({
-				projectStageId: stageId,
+				projectStageId: id,
 				userRole: "contractor",
 				remark: body.message.trim(),
 			});
@@ -69,12 +61,12 @@ export async function PUT(req, context) {
 
 		return NextResponse.json({
 			success: true,
-			message: "Stage marked completed",
+			message: "Stage updated successfully",
 		});
 	} catch (error) {
 		console.error("COMPLETE ERROR =>", error);
 		return NextResponse.json(
-			{ success: false, error: error.message },
+			{ success: false, message: error.message },
 			{ status: 500 }
 		);
 	}

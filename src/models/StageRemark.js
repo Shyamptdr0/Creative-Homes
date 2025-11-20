@@ -12,6 +12,12 @@ const StageRemark = sequelize.define("StageRemark", {
 	},
 
 	remark: { type: DataTypes.TEXT, allowNull: false },
+
+	isRead: {
+		type: DataTypes.BOOLEAN,
+		defaultValue: false
+	},
+
 }, {
 	tableName: "StageRemarks",
 	timestamps: true,

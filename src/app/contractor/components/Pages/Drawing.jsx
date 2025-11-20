@@ -7,16 +7,17 @@ import {
 	CardTitle,
 	CardContent,
 } from "@/components/ui/card";
-import {
-	Table,
-	TableHeader,
-	TableRow,
-	TableHead,
-	TableBody,
-	TableCell,
-} from "@/components/ui/table";
+
 import { Button } from "@/components/ui/button";
-import { Loader2, FileText, Image, Video, File, Download } from "lucide-react";
+import {
+	Loader2,
+	FileText,
+	Image,
+	Video,
+	File,
+	Download,
+} from "lucide-react";
+
 import {
 	Dialog,
 	DialogContent,
@@ -24,17 +25,34 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 
+import {
+	Select,
+	SelectTrigger,
+	SelectValue,
+	SelectContent,
+	SelectItem,
+} from "@/components/ui/select";
+
 export default function ContractorDrawingsPage() {
 	const [drawings, setDrawings] = useState([]);
 	const [loading, setLoading] = useState(true);
+
 	const [previewFile, setPreviewFile] = useState(null);
-	const [projectFiles, setProjectFiles] = useState([]);
 	const [selectedDrawing, setSelectedDrawing] = useState(null);
+
+	const [projectGrouped, setProjectGrouped] = useState({});
+	const [projectList, setProjectList] = useState([]);
+
+	// selected project for filter
+	const [selectedProjectId, setSelectedProjectId] = useState("");
 
 	useEffect(() => {
 		fetchDrawings();
 	}, []);
 
+	/* =====================================================
+	    FETCH DRAWINGS
+	===================================================== */
 	const fetchDrawings = async () => {
 		setLoading(true);
 
@@ -47,7 +65,11 @@ export default function ContractorDrawingsPage() {
 			});
 
 			const data = await res.json();
-			setDrawings(data?.drawings || []);
+			const list = data?.drawings || [];
+
+			setDrawings(list);
+			groupByProject(list);
+			buildProjectList(list);
 		} catch {
 			setEmpty();
 		}
@@ -57,30 +79,67 @@ export default function ContractorDrawingsPage() {
 
 	const setEmpty = () => {
 		setDrawings([]);
+		setProjectGrouped({});
+		setProjectList([]);
 		setLoading(false);
 	};
 
+	/* =====================================================
+	    GROUP DRAWINGS BY PROJECT
+	===================================================== */
+	const groupByProject = (list) => {
+		const grouped = {};
+
+		list.forEach((d) => {
+			const id = d.project?.id;
+
+			if (!grouped[id]) {
+				grouped[id] = {
+					project: d.project,
+					drawings: [],
+				};
+			}
+			grouped[id].drawings.push(d);
+		});
+
+		setProjectGrouped(grouped);
+	};
+
+	/* =====================================================
+	    CREATE PROJECT DROPDOWN LIST
+	===================================================== */
+	const buildProjectList = (list) => {
+		const map = {};
+
+		list.forEach((d) => {
+			map[d.project.id] = {
+				id: d.project.id,
+				name: d.project.title,
+				uid: d.project.projectUid,
+			};
+		});
+
+		setProjectList(Object.values(map));
+	};
+
+	/* =====================================================
+	    FILE TYPE HELPERS
+	===================================================== */
 	const isImage = (url) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
 	const isVideo = (url) => /\.(mp4|mov)$/i.test(url);
 	const isPDF = (url) => /\.pdf$/i.test(url);
 
-	const FileIcon = (file) => {
-		if (isPDF(file)) return <FileText className="w-4 h-4 text-red-500" />;
-		if (isImage(file)) return <Image className="w-4 h-4 text-blue-500" />;
-		if (isVideo(file)) return <Video className="w-4 h-4 text-green-600" />;
-		return <File className="w-4 h-4" />;
-	};
-
-	// ✅ Store whole drawing object
+	/* =====================================================
+	    OPEN PREVIEW
+	===================================================== */
 	const openPreview = (drawing) => {
 		setPreviewFile(drawing.fileUrl);
 		setSelectedDrawing(drawing);
-
-		const related = drawings.filter((d) => d.projectId === drawing.projectId);
-		setProjectFiles(related);
 	};
 
-	// ✅ FORCE REAL DOWNLOAD (Cloudinary safe) + Custom Filename
+	/* =====================================================
+	    DOWNLOAD FILE
+	===================================================== */
 	const downloadFile = async () => {
 		if (!previewFile || !selectedDrawing) return;
 
@@ -91,151 +150,158 @@ export default function ContractorDrawingsPage() {
 			const url = window.URL.createObjectURL(blob);
 			const link = document.createElement("a");
 
-			// ✅ Custom filename
-			const project = selectedDrawing.project?.title || "Project";
-			const title = selectedDrawing.title || "Drawing";
+			const { project, title } = selectedDrawing;
 			const extension = previewFile.split(".").pop();
-			const filename = `${project}-${title}.${extension}`.replace(/\s+/g, "_");
+			const filename = `${project?.title}-${title}.${extension}`.replace(/\s+/g, "_");
 
 			link.href = url;
 			link.setAttribute("download", filename);
-
 			document.body.appendChild(link);
 			link.click();
 			link.remove();
+
 			window.URL.revokeObjectURL(url);
 		} catch (err) {
 			console.error("DOWNLOAD ERROR:", err);
 		}
 	};
 
+	/* =====================================================
+	    UI
+	===================================================== */
 	return (
-		<div className="p-6 space-y-6 animate-fadeIn">
+		<div className="p-6 space-y-8 animate-fadeIn">
 			<h1 className="text-3xl font-bold tracking-tight">Project Drawings</h1>
 
+			{/* ==========================
+			    PROJECT DROPDOWN
+			========================== */}
+			<div className="max-w-sm mb-6">
+				<Select
+					value={selectedProjectId}
+					onValueChange={(v) => setSelectedProjectId(v)}
+				>
+					<SelectTrigger className="w-full">
+						<SelectValue placeholder="Select Project" />
+					</SelectTrigger>
+
+					<SelectContent>
+						{projectList.map((p) => (
+							<SelectItem key={p.id} value={String(p.id)}>
+								{p.name} ({p.uid})
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
+
+			{/* ==========================
+			    PROJECT DRAWINGS CARD
+			========================== */}
 			<Card className="shadow-md border rounded-xl">
 				<CardHeader className="pb-2 border-b">
-					<CardTitle className="text-xl font-semibold flex items-center gap-2">
-						<FileText className="w-5 h-5" />
-						Assigned Drawings
+					<CardTitle className="text-xl font-semibold">
+						Project Drawings
 					</CardTitle>
 				</CardHeader>
 
-				<CardContent className="p-0">
+				<CardContent className="p-4">
 					{loading ? (
 						<div className="flex justify-center py-20">
 							<Loader2 className="animate-spin h-10 w-10 text-gray-600" />
 						</div>
-					) : (
-						<div className="overflow-auto max-h-[70vh] rounded-b-xl">
-							<Table>
-								<TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
-									<TableRow>
-										<TableHead className="font-semibold">Project</TableHead>
-										<TableHead className="font-semibold">Client</TableHead>
-										<TableHead className="font-semibold">Drawing</TableHead>
-										<TableHead className="text-center font-semibold">Action</TableHead>
-									</TableRow>
-								</TableHeader>
+					) : !selectedProjectId ? (
+						<p className="text-center text-gray-500 py-10">
+							Please select a project to view drawings.
+						</p>
+					) : projectGrouped[selectedProjectId] ? (
+						<div>
+							{/* PROJECT HEADER */}
+							<div className="mb-4">
+								<h2 className="text-xl font-bold">
+									{projectGrouped[selectedProjectId].project.title}
+								</h2>
+								<p className="text-gray-600 text-sm">
+									Project ID: <b>{projectGrouped[selectedProjectId].project.projectUid}</b>
+								</p>
+								<p className="text-gray-600 text-sm">
+									Client: <b>{projectGrouped[selectedProjectId].project.client?.name}</b>
+								</p>
+								<p className="text-gray-600 text-sm">
+									Type: <b>{projectGrouped[selectedProjectId].project.projectType?.name || "N/A"}</b>
+								</p>
+							</div>
 
-								<TableBody>
-									{drawings.length ? (
-										drawings.map((d) => (
-											<TableRow
-												key={d.id}
-												className="hover:bg-gray-100/70 transition border-b"
-											>
-												<TableCell className="font-medium">{d.project?.title}</TableCell>
-												<TableCell>{d.project?.client?.name || "-"}</TableCell>
+							{/* DRAWINGS GRID */}
+							<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+								{projectGrouped[selectedProjectId].drawings.map((d) => (
+									<div
+										key={d.id}
+										onClick={() => openPreview(d)}
+										className="cursor-pointer border rounded-lg p-3 bg-white hover:shadow-lg transition"
+									>
+										<div className="h-28 w-full bg-gray-100 flex items-center justify-center rounded">
+											{isImage(d.fileUrl) && (
+												<img
+													src={d.fileUrl}
+													className="h-full w-full object-cover rounded"
+												/>
+											)}
+											{isPDF(d.fileUrl) && (
+												<FileText className="w-10 h-10 text-red-500" />
+											)}
+											{isVideo(d.fileUrl) && (
+												<Video className="w-10 h-10 text-green-600" />
+											)}
+										</div>
 
-												<TableCell className="flex items-center gap-2">
-													{FileIcon(d.fileUrl)}
-													<span>{d.title}</span>
-												</TableCell>
-
-												<TableCell className="text-center">
-													<Button
-														size="sm"
-														className="rounded-lg"
-														variant="outline"
-														onClick={() => openPreview(d)}
-													>
-														<FileText className="w-4 h-4 mr-2" />
-														View
-													</Button>
-												</TableCell>
-											</TableRow>
-										))
-									) : (
-										<TableRow>
-											<TableCell colSpan={4} className="text-center py-8 text-gray-500">
-												No drawings assigned yet
-											</TableCell>
-										</TableRow>
-									)}
-								</TableBody>
-							</Table>
+										<p className="text-sm mt-2 font-medium text-gray-800 truncate">
+											{d.title}
+										</p>
+									</div>
+								))}
+							</div>
 						</div>
+					) : (
+						<p className="text-center text-gray-500 py-10">
+							No drawings found for this project.
+						</p>
 					)}
 				</CardContent>
 			</Card>
 
+			{/* ==========================
+			    PREVIEW MODAL
+			========================== */}
 			{previewFile && (
 				<Dialog open={true} onOpenChange={() => setPreviewFile(null)}>
-					<DialogContent className="max-w-screen flex flex-col">
+					<DialogContent className="max-w-screen-lg p-3">
 						<DialogHeader>
-							<DialogTitle>Drawing Preview</DialogTitle>
-							<p className="text-sm text-gray-600">{selectedDrawing?.title}</p>
+							<DialogTitle className="text-xl">
+								{selectedDrawing?.title}
+							</DialogTitle>
 						</DialogHeader>
 
-
-						<div className="flex-1 overflow-auto bg-gray-100 rounded p-2 border">
+						<div className="mt-3 max-h-[70vh] rounded overflow-auto bg-gray-100 p-3 border">
 							{isPDF(previewFile) && (
-								<iframe src={previewFile} className="w-full h-full rounded" />
+								<iframe src={previewFile} className="w-full h-[70vh]" />
 							)}
 
 							{isImage(previewFile) && (
 								<img
 									src={previewFile}
-									alt="Preview"
-									className="w-full h-auto mx-auto rounded shadow-lg"
+									className="w-full max-h-[70vh] object-contain mx-auto rounded"
 								/>
 							)}
 
 							{isVideo(previewFile) && (
-								<video controls className="w-full h-full rounded shadow-lg">
+								<video controls className="w-full max-h-[70vh] rounded">
 									<source src={previewFile} />
 								</video>
 							)}
 						</div>
 
-						{projectFiles.length > 1 && (
-							<div className="flex gap-3 mt-3 overflow-x-auto border-t pt-3">
-								{projectFiles.map((pf) => (
-									<div
-										key={pf.id}
-										onClick={() => openPreview(pf)}
-										className={`border rounded cursor-pointer p-1 transition hover:scale-105 ${
-											previewFile === pf.fileUrl ? "border-blue-500" : "border-gray-300"
-										}`}
-									>
-										{isImage(pf.fileUrl) ? (
-											<img src={pf.fileUrl} className="w-20 h-20 object-cover rounded" />
-										) : isPDF(pf.fileUrl) ? (
-											<div className="w-20 h-20 flex items-center justify-center bg-red-100 rounded">
-												<FileText className="text-red-500 w-6 h-6" />
-											</div>
-										) : (
-											<div className="w-20 h-20 flex items-center justify-center bg-green-100 rounded">
-												<Video className="text-green-600 w-6 h-6" />
-											</div>
-										)}
-									</div>
-								))}
-							</div>
-						)}
-
-						<div className="mt-3 flex justify-between">
+						<div className="mt-4 flex justify-between">
 							<Button variant="outline" onClick={downloadFile}>
 								<Download className="w-4 h-4 mr-2" />
 								Download

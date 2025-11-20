@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
 
 import {
 	Select,
@@ -49,13 +48,14 @@ import {
 	Trash,
 	CheckCircle,
 	XCircle,
-	Eye
+	Eye,
 } from "lucide-react";
 
-export default function StageTemplatePage() {
+import { toast } from "sonner";
 
+export default function StageTemplatePage() {
 	/* =========================================================
-	   STATES
+	    STATES
 	========================================================= */
 	const [projects, setProjects] = useState([]);
 	const [projectTypes, setProjectTypes] = useState([]);
@@ -72,10 +72,10 @@ export default function StageTemplatePage() {
 	const [selectedStages, setSelectedStages] = useState([]);
 	const [projectSavedStages, setProjectSavedStages] = useState([]);
 
-	// unread count
+	// unread count per stage
 	const [unreadRemarks, setUnreadRemarks] = useState({});
 
-	// template modals
+	// add / edit template
 	const [addModalOpen, setAddModalOpen] = useState(false);
 	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [name, setName] = useState("");
@@ -94,11 +94,14 @@ export default function StageTemplatePage() {
 	const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
 	const [rejectMessage, setRejectMessage] = useState("");
 
-	// NEW — View All Stages Sheet
+	// view all stages
 	const [allStagesSheet, setAllStagesSheet] = useState(false);
 
+	// floor (NEW)
+	const [floorName, setFloorName] = useState("");
+
 	/* =========================================================
-	   LOAD ALL DATA
+	    LOAD ALL DATA
 	========================================================= */
 	useEffect(() => {
 		loadAll();
@@ -106,11 +109,7 @@ export default function StageTemplatePage() {
 
 	const loadAll = async () => {
 		setLoading(true);
-		await Promise.all([
-			loadProjects(),
-			loadProjectTypes(),
-			loadStageTemplates(),
-		]);
+		await Promise.all([loadProjects(), loadProjectTypes(), loadStageTemplates()]);
 		setLoading(false);
 	};
 
@@ -133,12 +132,18 @@ export default function StageTemplatePage() {
 	};
 
 	const loadSavedStages = async (projectId) => {
-		const res = await fetch(`/api/project-stages/list?projectId=${projectId}`);
+		const token = sessionStorage.getItem("token");
+
+		const res = await fetch(`/api/project-stages/list?projectId=${projectId}`, {
+			headers: { Authorization: `Bearer ${token}` }
+		});
+
 		const data = await res.json();
 
 		if (data.success) {
 			setProjectSavedStages(data.stages);
 
+			// unread mapping
 			const unreadMap = {};
 			data.stages.forEach((st) => {
 				unreadMap[st.id] = st.unreadRemarks || 0;
@@ -147,18 +152,14 @@ export default function StageTemplatePage() {
 			setUnreadRemarks(unreadMap);
 		}
 	};
-
 	/* =========================================================
-	   SELECT PROJECT
+	    SELECT PROJECT
 	========================================================= */
 	const onProjectSelect = async (projectId) => {
 		setSelectedProject(projectId);
 		if (!projectId) return;
 
 		await loadSavedStages(projectId);
-
-		setSheetLoading(true);
-		setSheetOpen(true);
 
 		const project = projects.find((p) => Number(p.id) === Number(projectId));
 
@@ -169,8 +170,6 @@ export default function StageTemplatePage() {
 		const data = await res.json();
 
 		if (data.success) setAutoStages(data.stages);
-
-		setSheetLoading(false);
 	};
 
 	const openAvailableStages = async () => {
@@ -184,8 +183,8 @@ export default function StageTemplatePage() {
 		const res = await fetch(
 			`/api/stages/by-project-type?projectTypeId=${project.projectTypeId}`
 		);
-		const data = await res.json();
 
+		const data = await res.json();
 		if (data.success) setAutoStages(data.stages);
 
 		setSheetLoading(false);
@@ -196,20 +195,26 @@ export default function StageTemplatePage() {
 			prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
 		);
 	};
+
 	/* =========================================================
-	   ASSIGN STAGES
+	    ASSIGN STAGES WITH FLOOR
 	========================================================= */
 	const assignStages = async () => {
-		if (!selectedProject) return toast.error("Select project");
+		if (!selectedProject) return toast.error("Select project first");
+		if (selectedStages.length === 0) return toast.error("Select stages");
+		if (!floorName.trim()) return toast.error("Enter floor name");
 
 		setSaving(true);
 
 		const res = await fetch("/api/project-stages/create", {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+			},
 			body: JSON.stringify({
 				projectId: selectedProject,
 				stageTemplateIds: selectedStages,
+				floorName,
 			}),
 		});
 
@@ -218,21 +223,26 @@ export default function StageTemplatePage() {
 
 		if (data.success) {
 			toast.success("Stages Assigned");
+			setFloorName("");
 			await loadSavedStages(selectedProject);
 			setSheetOpen(false);
+		} else {
+			toast.error(data.error || "Failed");
 		}
 	};
 
 	/* =========================================================
-	   DELETE TEMPLATE
+	    DELETE TEMPLATE
 	========================================================= */
 	const deleteStageTemplate = async (id) => {
 		if (!confirm("Delete this?")) return;
 
 		setSaving(true);
+
 		const res = await fetch(`/api/stages/stage-templates/${id}`, {
 			method: "DELETE",
 		});
+
 		const data = await res.json();
 		setSaving(false);
 
@@ -243,14 +253,16 @@ export default function StageTemplatePage() {
 	};
 
 	/* =========================================================
-	   UPDATE TEMPLATE
+	    UPDATE TEMPLATE
 	========================================================= */
 	const updateStageTemplate = async () => {
 		setSaving(true);
 
 		const res = await fetch(`/api/stages/stage-templates/${editData.id}`, {
 			method: "PUT",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+			},
 			body: JSON.stringify(editData),
 		});
 
@@ -263,30 +275,61 @@ export default function StageTemplatePage() {
 			setEditModalOpen(false);
 		}
 	};
-
 	/* =========================================================
-	   OPEN REMARKS
+	    OPEN REMARKS (Fetch + Mark Read)
 	========================================================= */
 	const openRemarks = async (stage) => {
 		setRemarkStage(stage);
 		setRemarkDrawerOpen(true);
 		setRemarkLoading(true);
 
+		// Remove unread badge (UI only)
 		setUnreadRemarks((prev) => ({
 			...prev,
 			[stage.id]: 0,
 		}));
 
-		const res = await fetch(`/api/stages/${stage.id}/remarks`);
+		const token = sessionStorage.getItem("token");
+
+		const res = await fetch(`/api/stages/${stage.id}/remarks`, {
+			headers: { Authorization: `Bearer ${token}` }
+		});
+
 		const data = await res.json();
 
-		if (data.success) setRemarks(data.remarks);
+		if (data.success) {
+			setRemarks(data.remarks);
+
+			// Store client + contractor name info
+			setRemarkStage((prev) => ({
+				...prev,
+				StageTemplate: { name: data.stage?.templateName },
+				project: {
+					client: data.stage?.project?.client,
+					contractor: data.stage?.project?.contractor,
+				},
+			}));
+
+		}
 
 		setRemarkLoading(false);
+
+		setTimeout(() => {
+			remarkEndRef.current?.scrollIntoView({ behavior: "smooth" });
+		}, 150);
 	};
 
+	/* Auto scroll when drawer opens */
+	useEffect(() => {
+		if (remarkDrawerOpen) {
+			setTimeout(() => {
+				remarkEndRef.current?.scrollIntoView({ behavior: "smooth" });
+			}, 150);
+		}
+	}, [remarkDrawerOpen]);
+
 	/* =========================================================
-	   SEND REMARK
+	    SEND REMARK
 	========================================================= */
 	const sendRemark = async () => {
 		if (!newRemark.trim()) return;
@@ -305,22 +348,37 @@ export default function StageTemplatePage() {
 		const data = await res.json();
 
 		if (data.success) {
-			setRemarks((prev) => [
+
+			// Show instantly
+			setRemarks((prev) => [...prev, data.remark]);
+
+			// Mark this stage as read (remove badge)
+			setUnreadRemarks((prev) => ({
 				...prev,
-				{
-					id: Math.random(),
-					by: "admin",
-					message: newRemark,
-					createdAt: new Date(),
-				},
-			]);
+				[remarkStage.id]: 0,
+			}));
+
+			// Update projectSavedStages also
+			setProjectSavedStages((prev) =>
+				prev.map((s) =>
+					s.id === remarkStage.id
+						? { ...s, unreadRemarks: 0 }
+						: s
+				)
+			);
 
 			setNewRemark("");
+
+			setTimeout(() => {
+				remarkEndRef.current?.scrollIntoView({ behavior: "smooth" });
+			}, 120);
 		}
+
 	};
 
+
 	/* =========================================================
-	   APPROVE / REJECT
+	    APPROVE STAGE
 	========================================================= */
 	const approveStage = async (s) => {
 		const token = sessionStorage.getItem("token");
@@ -341,6 +399,9 @@ export default function StageTemplatePage() {
 		}
 	};
 
+	/* =========================================================
+	    REJECT STAGE
+	========================================================= */
 	const rejectStage = async (s) => {
 		setRejectMessage("");
 		setRemarkStage(s);
@@ -348,7 +409,8 @@ export default function StageTemplatePage() {
 	};
 
 	const confirmReject = async () => {
-		if (!rejectMessage.trim()) return toast.error("Remark required");
+		if (!rejectMessage.trim())
+			return toast.error("Remark required");
 
 		const token = sessionStorage.getItem("token");
 
@@ -371,7 +433,30 @@ export default function StageTemplatePage() {
 	};
 
 	/* =========================================================
-	   FORMAT DATE
+	    REMOVE ASSIGNED STAGE
+	========================================================= */
+	const removeAssignedStage = async (stageId) => {
+		if (!confirm("Remove this stage from project?")) return;
+
+		const res = await fetch(`/api/project-stages/${stageId}`, {
+			method: "DELETE",
+			headers: {
+				"Content-Type": "application/json",
+			},
+		});
+
+		const data = await res.json();
+
+		if (data.success) {
+			toast.success("Stage Removed");
+			loadSavedStages(selectedProject);
+		} else {
+			toast.error(data.error || "Failed to remove");
+		}
+	};
+
+	/* =========================================================
+	    FORMAT DATE (Used in messages)
 	========================================================= */
 	const formatDate = (d) =>
 		new Date(d).toLocaleString("en-IN", {
@@ -381,9 +466,8 @@ export default function StageTemplatePage() {
 			hour: "2-digit",
 			minute: "2-digit",
 		});
-
 	/* =========================================================
-	   UI START
+	    UI START
 	========================================================= */
 	return (
 		<div className="space-y-10">
@@ -395,17 +479,15 @@ export default function StageTemplatePage() {
 				</div>
 			)}
 
-			{/* HEADER AREA */}
+			{/* HEADER */}
 			<div className="flex justify-between items-center">
 				<h2 className="text-xl font-bold">Stage Templates</h2>
 
 				<div className="flex gap-3">
-					{/* NEW → View Stages Button */}
 					<Button variant="outline" onClick={() => setAllStagesSheet(true)}>
 						<Eye className="w-4 h-4 mr-2" /> View Stages
 					</Button>
 
-					{/* Add Stage Template */}
 					<Button onClick={() => setAddModalOpen(true)}>
 						<PlusCircle className="w-4 mr-2" /> Add
 					</Button>
@@ -430,11 +512,28 @@ export default function StageTemplatePage() {
 				</Select>
 			</div>
 
-			{/* OPEN STAGE ASSIGNMENT SHEET */}
+			{/* PROJECT DETAIL + OPEN STAGES SHEET */}
 			{selectedProject && (
-				<Button className="mt-3" onClick={openAvailableStages}>
-					Open Available Stages
-				</Button>
+				<div className="space-y-3 mt-3">
+
+					<Button onClick={openAvailableStages}>Open Available Stages</Button>
+
+					<div className="border rounded-lg p-4 bg-gray-50 text-sm space-y-1">
+						{(() => {
+							const p = projects.find((x) => Number(x.id) === Number(selectedProject));
+							if (!p) return null;
+
+							return (
+								<>
+									<p><strong>Project ID:</strong> {p.projectUid}</p>
+									<p><strong>Project Name:</strong> {p.title}</p>
+									<p><strong>Client:</strong> {p.client?.clientId} - {p.client?.name || "N/A"}</p>
+									<p><strong>Contractor:</strong> {p.contractor?.contractorId} - {p.contractor?.name || "N/A"}</p>
+								</>
+							);
+						})()}
+					</div>
+				</div>
 			)}
 
 			{/* ASSIGNED STAGES TABLE */}
@@ -449,94 +548,123 @@ export default function StageTemplatePage() {
 								<TableHead>Name</TableHead>
 								<TableHead>Status</TableHead>
 								<TableHead>Actions</TableHead>
+								<TableHead>Remove</TableHead>
 								<TableHead>Remarks</TableHead>
 							</TableRow>
 						</TableHeader>
 
 						<TableBody>
-							{projectSavedStages.map((st, i) => (
-								<TableRow key={st.id}>
-									<TableCell>{i + 1}</TableCell>
+							{Object.entries(
+								projectSavedStages.reduce((acc, st) => {
+									const group = st.floorName || "No Floor";
+									if (!acc[group]) acc[group] = [];
+									acc[group].push(st);
+									return acc;
+								}, {})
+							)
+								.sort(([floorA], [floorB]) => {
+									const order = (f) => {
+										const t = f.toLowerCase();
+										if (t.includes("basement")) return -2;
+										if (t.includes("ground")) return -1;
+										const m = t.match(/(\d+)/);
+										if (m) return parseInt(m[1]);
+										if (t.includes("terrace")) return 999;
+										return 500;
+									};
+									return order(floorA) - order(floorB);
+								})
+								.map(([floor, list], idx) => (
+									<>
+										<TableRow key={floor + idx} className="bg-gray-100">
+											<TableCell colSpan={7} className="font-semibold text-lg">
+												{floor}
+											</TableCell>
+										</TableRow>
 
-									<TableCell>{st.StageTemplate?.name}</TableCell>
+										{list.map((st, i) => (
+											<TableRow key={st.id}>
+												<TableCell>{i + 1}</TableCell>
+												<TableCell>{st.StageTemplate?.name}</TableCell>
 
-									<TableCell>
-										{st.status === "approved" && (
-											<span className="text-green-600 font-semibold">
-												Approved
-											</span>
-										)}
-										{st.status === "completed" && (
-											<span className="text-blue-600 font-semibold">
-												Completed
-											</span>
-										)}
-										{st.status === "rejected" && (
-											<span className="text-red-600 font-semibold">
-												Rejected
-											</span>
-										)}
-										{st.status === "pending" && (
-											<span className="text-gray-600 font-semibold">
-												Pending
-											</span>
-										)}
-									</TableCell>
+												<TableCell>
+													{st.status === "approved" && (
+														<span className="text-green-600 font-semibold">Approved</span>
+													)}
+													{st.status === "completed" && (
+														<span className="text-blue-600 font-semibold">Completed</span>
+													)}
+													{st.status === "rejected" && (
+														<span className="text-red-600 font-semibold">Rejected</span>
+													)}
+													{st.status === "pending" && (
+														<span className="text-gray-600 font-semibold">Pending</span>
+													)}
+												</TableCell>
 
-									{/* ACTION BUTTONS */}
-									<TableCell>
-										{st.status === "completed" && (
-											<div className="flex gap-2">
-												<Button size="sm" onClick={() => approveStage(st)}>
-													<CheckCircle className="w-4" />
-												</Button>
+												<TableCell>
+													{st.status === "completed" && (
+														<div className="flex gap-2">
+															<Button size="sm" onClick={() => approveStage(st)}>
+																<CheckCircle className="w-4" />
+															</Button>
+															<Button size="sm" variant="destructive" onClick={() => rejectStage(st)}>
+																<XCircle className="w-4" />
+															</Button>
+														</div>
+													)}
+												</TableCell>
 
-												<Button
-													size="sm"
-													variant="destructive"
-													onClick={() => rejectStage(st)}
-												>
-													<XCircle className="w-4" />
-												</Button>
-											</div>
-										)}
-									</TableCell>
+												<TableCell>
+													<Button size="sm" variant="destructive"
+													        onClick={() => removeAssignedStage(st.id)}>
+														<Trash className="w-4 h-4" />
+													</Button>
+												</TableCell>
 
-									{/* REMARK BUTTON */}
-									<TableCell>
-										<div className="relative inline-block">
-											<Button
-												size="sm"
-												variant="outline"
-												onClick={() => openRemarks(st)}
-											>
-												<MessageCircle className="w-4 h-4" />
-											</Button>
+												<TableCell>
+													<div className="relative inline-block">
+														<Button size="sm" variant="outline"
+														        onClick={() => openRemarks(st)}>
+															<MessageCircle className="w-4 h-4" />
+														</Button>
 
-											{/* UNREAD DOT */}
-											{unreadRemarks[st.id] > 0 && (
-												<span className="
-													absolute -top-1 -right-1
-													bg-red-600 w-3 h-3
-													rounded-full border border-white
-												"></span>
-											)}
-										</div>
-									</TableCell>
-								</TableRow>
-							))}
+														{unreadRemarks[st.id] > 0 && (
+															<span className="
+																absolute -top-1 -right-1 bg-red-600 text-white
+																text-[10px] font-semibold h-4 min-w-4 px-[2px]
+																flex items-center justify-center rounded-full shadow
+															">
+																{unreadRemarks[st.id]}
+															</span>
+														)}
+													</div>
+												</TableCell>
+											</TableRow>
+										))}
+									</>
+								))}
 						</TableBody>
 					</Table>
 				</div>
 			)}
-			{/* =========================================================
-			    AVAILABLE STAGES SHEET (ASSIGN TO PROJECT)
-			========================================================= */}
-			<Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+
+			{/* ASSIGN STAGES SHEET */}
+			<Sheet open={sheetOpen} onOpenChange={(o) => {
+				setSheetOpen(o);
+				if (!o) setSelectedStages([]);
+			}}>
 				<SheetContent className="w-[520px] p-4">
-					<SheetHeader>
-						<SheetTitle>Available Stages</SheetTitle>
-					</SheetHeader>
+					<SheetHeader><SheetTitle>Available Stages</SheetTitle></SheetHeader>
+
+					<div className="space-y-3">
+						<Label>Floor Name</Label>
+						<Input
+							value={floorName}
+							onChange={(e) => setFloorName(e.target.value)}
+							placeholder="Ground Floor, Basement, 1st, etc."
+						/>
+					</div>
 
 					{sheetLoading ? (
 						<div className="flex justify-center py-10">
@@ -546,10 +674,23 @@ export default function StageTemplatePage() {
 						<Table className="mt-4">
 							<TableHeader>
 								<TableRow>
-									<TableHead></TableHead>
-									<TableHead>Name</TableHead>
-									<TableHead>Edit</TableHead>
-									<TableHead>Delete</TableHead>
+									<TableHead>
+										<input
+											type="checkbox"
+											checked={
+												autoStages.length > 0 &&
+												selectedStages.length === autoStages.length
+											}
+											onChange={(e) =>
+												setSelectedStages(
+													e.target.checked
+														? autoStages.map((s) => s.id)
+														: []
+												)
+											}
+										/>
+									</TableHead>
+									<TableHead>Stage Name</TableHead>
 								</TableRow>
 							</TableHeader>
 
@@ -563,31 +704,7 @@ export default function StageTemplatePage() {
 												onChange={() => toggleStage(st.id)}
 											/>
 										</TableCell>
-
 										<TableCell>{st.name}</TableCell>
-
-										<TableCell>
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => {
-													setEditData(st);
-													setEditModalOpen(true);
-												}}
-											>
-												<Edit className="w-4 h-4" />
-											</Button>
-										</TableCell>
-
-										<TableCell>
-											<Button
-												variant="destructive"
-												size="sm"
-												onClick={() => deleteStageTemplate(st.id)}
-											>
-												<Trash className="w-4 h-4" />
-											</Button>
-										</TableCell>
 									</TableRow>
 								))}
 							</TableBody>
@@ -595,78 +712,86 @@ export default function StageTemplatePage() {
 					)}
 
 					<SheetFooter>
-						<Button className="w-full mt-4" onClick={assignStages}>
-							Assign Selected
-						</Button>
+						<Button className="w-full mt-4" onClick={assignStages}>Assign Selected</Button>
 					</SheetFooter>
 				</SheetContent>
 			</Sheet>
 
-
-			{/* =========================================================
-			    REMARKS DRAWER
-			========================================================= */}
+			{/* REMARK CHAT DRAWER */}
 			<Sheet open={remarkDrawerOpen} onOpenChange={setRemarkDrawerOpen}>
-				<SheetContent className="w-[400px] p-4">
-					<SheetHeader>
-						<SheetTitle>
-							Remarks — {remarkStage?.StageTemplate?.name}
-						</SheetTitle>
-					</SheetHeader>
+				<SheetContent className="w-[420px] p-0 flex flex-col bg-white">
 
-					{remarkLoading ? (
-						<div className="flex justify-center py-10">
-							<Loader2 className="animate-spin" />
-						</div>
-					) : (
-						<div className="mt-3 max-h-[70vh] overflow-y-auto space-y-3">
-							{remarks.map((r) => (
-								<div
-									key={r.id}
-									className={`p-3 rounded border ${
-										r.by === "admin"
-											? "bg-red-100"
-											: r.by === "contractor"
-												? "bg-blue-100"
-												: "bg-gray-100"
-									}`}
-								>
-									<p>{r.message}</p>
-									<p className="text-xs mt-2 flex justify-between">
-										<span>{r.by}</span>
-										<span>{formatDate(r.createdAt)}</span>
-									</p>
-								</div>
-							))}
-						</div>
-					)}
+					<div className="p-4 border-b shadow-sm bg-white">
+						<h2 className="font-semibold text-lg">{remarkStage?.StageTemplate?.name}</h2>
+						<p className="text-xs text-gray-500">{projects.find((p) => Number(p.id) === Number(selectedProject))?.title}</p>
+					</div>
 
-					<Separator className="my-3" />
+					<div className="flex-1 p-4 bg-gray-100 space-y-4 overflow-y-auto">
+						{remarkLoading ? (
+							<div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin" /></div>
+						) : (
+							remarks.map((r, idx) => {
+								const isMe = r.by === "admin";
+								const msgDate = new Date(r.createdAt);
+								const prev = remarks[idx - 1];
+								const showDate = !prev || new Date(prev.createdAt).toDateString() !== msgDate.toDateString();
 
-					<Textarea
-						className="h-20"
-						value={newRemark}
-						onChange={(e) => setNewRemark(e.target.value)}
-						placeholder="Write message…"
-					/>
+								const label = (() => {
+									const t = new Date();
+									const y = new Date(); y.setDate(t.getDate() - 1);
+									if (msgDate.toDateString() === t.toDateString()) return "Today";
+									if (msgDate.toDateString() === y.toDateString()) return "Yesterday";
+									return msgDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+								})();
 
-					<SheetFooter>
-						<Button className="w-full" onClick={sendRemark}>
-							Send
-						</Button>
-					</SheetFooter>
+								return (
+									<div key={r.id} className="space-y-2">
+										{showDate && (
+											<div className="text-center my-2">
+												<span className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded-full">{label}</span>
+											</div>
+										)}
+
+										<div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+											<div className={`max-w-[75%] px-3 py-2 rounded-lg shadow-sm text-sm
+												${isMe ? "bg-primary text-primary-foreground" : "bg-white border text-gray-800"}`}>
+												<p className="text-[10px] font-medium opacity-70 mb-1">
+													{r.by === "admin" && "You"}
+													{r.by === "contractor" && (r.senderName || remarkStage?.project?.contractor?.name || "Contractor")}
+													{r.by === "client" && (r.senderName || remarkStage?.project?.client?.name || "Client")}
+												</p>
+
+												<p className="whitespace-pre-wrap">{r.message}</p>
+
+												<p className="text-[10px] opacity-70 text-right mt-1">
+													{msgDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+												</p>
+											</div>
+										</div>
+									</div>
+								);
+							})
+						)}
+
+						<div ref={remarkEndRef} />
+					</div>
+
+					<div className="p-3 border-t flex gap-2 bg-white">
+						<Textarea
+							value={newRemark}
+							onChange={(e) => setNewRemark(e.target.value)}
+							placeholder="Type a message..."
+							className="h-14 flex-1 resize-none rounded-xl"
+						/>
+						<Button className="h-14 px-5 rounded-xl" onClick={sendRemark}>Send</Button>
+					</div>
 				</SheetContent>
 			</Sheet>
 
-
-			{/* =========================================================
-			    REJECT STAGE DIALOG
-			========================================================= */}
+			{/* REJECT DIALOG */}
 			<Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
 				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Reject Stage</DialogTitle>
-					</DialogHeader>
+					<DialogHeader><DialogTitle>Reject Stage</DialogTitle></DialogHeader>
 
 					<div className="space-y-4">
 						<Label>Enter remark (required)</Label>
@@ -678,49 +803,29 @@ export default function StageTemplatePage() {
 					</div>
 
 					<DialogFooter>
-						<Button variant="destructive" onClick={confirmReject}>
-							Reject
-						</Button>
+						<Button variant="destructive" onClick={confirmReject}>Reject</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
-
-			{/* =========================================================
-			    ADD STAGE TEMPLATE MODAL
-			========================================================= */}
+			{/* ADD TEMPLATE */}
 			<Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
 				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Add Stage Template</DialogTitle>
-					</DialogHeader>
+					<DialogHeader><DialogTitle>Add Stage Template</DialogTitle></DialogHeader>
 
 					<div className="space-y-4">
 						<div>
 							<Label>Name</Label>
-							<Input
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-							/>
+							<Input value={name} onChange={(e) => setName(e.target.value)} />
 						</div>
 
 						<div>
 							<Label>Project Type</Label>
-							<Select
-								value={projectTypeId}
-								onValueChange={setProjectTypeId}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder="Select Type" />
-								</SelectTrigger>
+							<Select value={projectTypeId} onValueChange={setProjectTypeId}>
+								<SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
 								<SelectContent>
 									{projectTypes.map((pt) => (
-										<SelectItem
-											key={pt.id}
-											value={String(pt.id)}
-										>
-											{pt.name}
-										</SelectItem>
+										<SelectItem key={pt.id} value={String(pt.id)}>{pt.name}</SelectItem>
 									))}
 								</SelectContent>
 							</Select>
@@ -728,59 +833,45 @@ export default function StageTemplatePage() {
 					</div>
 
 					<DialogFooter>
-						<Button
-							disabled={saving}
-							onClick={async () => {
-								if (!name || !projectTypeId)
-									return toast.error("Required fields missing");
+						<Button disabled={saving} onClick={async () => {
+							if (!name || !projectTypeId) return toast.error("Required fields missing");
 
-								setSaving(true);
+							setSaving(true);
 
-								const res = await fetch("/api/stages/stage-templates", {
-									method: "POST",
-									headers: { "Content-Type": "application/json" },
-									body: JSON.stringify({
-										name,
-										projectTypeId,
-									}),
-								});
+							const res = await fetch("/api/stages/stage-templates", {
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({ name, projectTypeId }),
+							});
 
-								const data = await res.json();
-								setSaving(false);
+							const data = await res.json();
+							setSaving(false);
 
-								if (data.success) {
-									toast.success("Added");
-									loadStageTemplates();
-									setAddModalOpen(false);
-									setName("");
-									setProjectTypeId("");
-								}
-							}}
-						>
+							if (data.success) {
+								toast.success("Added");
+								loadStageTemplates();
+								setAddModalOpen(false);
+								setName("");
+								setProjectTypeId("");
+							}
+						}}>
 							{saving ? <Loader2 className="animate-spin" /> : "Add"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
-
-			{/* =========================================================
-			    EDIT TEMPLATE MODAL
-			========================================================= */}
+			{/* EDIT TEMPLATE */}
 			<Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
 				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Edit Template</DialogTitle>
-					</DialogHeader>
+					<DialogHeader><DialogTitle>Edit Template</DialogTitle></DialogHeader>
 
 					<div className="space-y-4">
 						<div>
 							<Label>Name</Label>
 							<Input
 								value={editData?.name || ""}
-								onChange={(e) =>
-									setEditData({ ...editData, name: e.target.value })
-								}
+								onChange={(e) => setEditData({ ...editData, name: e.target.value })}
 							/>
 						</div>
 
@@ -788,19 +879,12 @@ export default function StageTemplatePage() {
 							<Label>Project Type</Label>
 							<Select
 								value={String(editData?.projectTypeId || "")}
-								onValueChange={(v) =>
-									setEditData({ ...editData, projectTypeId: v })
-								}
+								onValueChange={(v) => setEditData({ ...editData, projectTypeId: v })}
 							>
-								<SelectTrigger>
-									<SelectValue placeholder="Select Type" />
-								</SelectTrigger>
-
+								<SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
 								<SelectContent>
 									{projectTypes.map((pt) => (
-										<SelectItem key={pt.id} value={String(pt.id)}>
-											{pt.name}
-										</SelectItem>
+										<SelectItem key={pt.id} value={String(pt.id)}>{pt.name}</SelectItem>
 									))}
 								</SelectContent>
 							</Select>
@@ -815,53 +899,35 @@ export default function StageTemplatePage() {
 				</DialogContent>
 			</Dialog>
 
-
-
-			{/* =========================================================
-			    🆕 VIEW ALL STAGES — GROUPED BY PROJECT TYPE
-			========================================================= */}
-			{/* ========================================================= 🆕 VIEW ALL STAGES — GROUPED BY PROJECT TYPE ========================================================= */}
+			{/* ALL STAGES SHEET */}
 			<Sheet open={allStagesSheet} onOpenChange={setAllStagesSheet}>
 				<SheetContent className="w-[480px] p-5 overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>All Stage Templates</SheetTitle>
-					</SheetHeader>
+					<SheetHeader><SheetTitle>All Stage Templates</SheetTitle></SheetHeader>
 
 					<div className="mt-6 space-y-6">
 						{projectTypes.map((pt) => {
-							const filtered = stageTemplates.filter((s) => s.projectTypeId === pt.id);
-							if (filtered.length === 0) return null;
+							const list = stageTemplates.filter((s) => s.projectTypeId === pt.id);
+							if (list.length === 0) return null;
 
 							return (
 								<div key={pt.id} className="border rounded-lg p-4 shadow-sm">
 									<h3 className="font-bold text-lg mb-3">{pt.name}</h3>
 
-									{filtered.map((st) => (
-										<div
-											key={st.id}
-											className="p-2 border-b last:border-none flex justify-between items-center"
-										>
+									{list.map((st) => (
+										<div key={st.id} className="p-2 border-b flex justify-between items-center">
 											<span>{st.name}</span>
 
 											<div className="flex gap-2">
-												{/* EDIT BUTTON */}
-												<Button
-													size="sm"
-													variant="outline"
-													onClick={() => {
-														setEditData(st);
-														setEditModalOpen(true);
-													}}
-												>
+												<Button size="sm" variant="outline"
+												        onClick={() => {
+													        setEditData(st);
+													        setEditModalOpen(true);
+												        }}>
 													<Edit className="w-4 h-4" />
 												</Button>
 
-												{/* DELETE BUTTON */}
-												<Button
-													size="sm"
-													variant="destructive"
-													onClick={() => deleteStageTemplate(st.id)}
-												>
+												<Button size="sm" variant="destructive"
+												        onClick={() => deleteStageTemplate(st.id)}>
 													<Trash className="w-4 h-4" />
 												</Button>
 											</div>
@@ -873,7 +939,6 @@ export default function StageTemplatePage() {
 					</div>
 				</SheetContent>
 			</Sheet>
-
 		</div>
 	);
 }

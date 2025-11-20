@@ -1,74 +1,43 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
-	Card,
-	CardHeader,
-	CardTitle,
-	CardContent
+	Card, CardHeader, CardTitle, CardContent
 } from "@/components/ui/card";
+
 import {
-	Table,
-	TableHeader,
-	TableRow,
-	TableHead,
-	TableBody,
-	TableCell
+	Table, TableHeader, TableRow, TableHead,
+	TableBody, TableCell
 } from "@/components/ui/table";
+
 import {
-	Pagination,
-	PaginationContent,
-	PaginationItem,
-	PaginationPrevious,
-	PaginationNext
+	Pagination, PaginationContent, PaginationItem,
+	PaginationPrevious, PaginationNext
 } from "@/components/ui/pagination";
 
 import {
-	Loader2,
-	FolderKanban,
-	Wallet,
-	Bell,
-	FileText,
-	MessageCircle,
-	Image as ImageIcon,
-	Video,
-	File,
-	Download,
-	ListChecks,
-	PencilRuler,
-	ChevronLeft
+	Loader2, FolderKanban, Wallet, Bell, FileText,
+	Image as ImageIcon, Video, File, Download,
+	ListChecks, PencilRuler, ChevronLeft
 } from "lucide-react";
 
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle
+	Dialog, DialogContent, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
 
 import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter
+	Sheet, SheetContent, SheetHeader,
+	SheetTitle, SheetDescription
 } from "@/components/ui/sheet";
 
-import {
-	Tabs,
-	TabsList,
-	TabsTrigger,
-	TabsContent
-} from "@/components/ui/tabs";
-
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function ContractorDashboard({ setActivePage }) {
 
+	/* -------------------------------------------
+		  STATES
+	--------------------------------------------*/
 	const [stats, setStats] = useState({ projects: 0, payments: 0 });
 	const [newQueries, setNewQueries] = useState(0);
 
@@ -78,16 +47,16 @@ export default function ContractorDashboard({ setActivePage }) {
 
 	const [currentPage, setCurrentPage] = useState(1);
 	const itemsPerPage = 8;
-	const totalPages = Math.ceil(tableData.length / itemsPerPage);
+
 	const paginatedData = tableData.slice(
 		(currentPage - 1) * itemsPerPage,
 		currentPage * itemsPerPage
 	);
 
-	// ========= Admin-style sheet ==============
+	// PROJECT SHEET
 	const [openProjectSheet, setOpenProjectSheet] = useState(null);
 
-	// ========= Stage chat ==============
+	// CHAT
 	const [selectedStage, setSelectedStage] = useState(null);
 	const [stageRemarks, setStageRemarks] = useState([]);
 	const [remarkText, setRemarkText] = useState("");
@@ -95,52 +64,53 @@ export default function ContractorDashboard({ setActivePage }) {
 	const [remarkFetching, setRemarkFetching] = useState(false);
 	const remarkEndRef = useRef(null);
 
-	// ========= Drawing preview ==============
+	// DRAWINGS
 	const [previewFile, setPreviewFile] = useState(null);
 	const [previewDrawing, setPreviewDrawing] = useState(null);
 	const [projectDrawings, setProjectDrawings] = useState([]);
 
-	// ========= Approval popup ==============
+	// APPROVAL POPUP
 	const [pendingApprovalProject, setPendingApprovalProject] = useState(null);
 
+	/* -------------------------------------------
+		   FETCH STATS + QUERIES + POPUP
+	--------------------------------------------*/
 	async function checkApprovalPopup() {
 		const token = sessionStorage.getItem("token");
+
 		const res = await fetch("/api/contractors/projects", {
 			headers: { Authorization: `Bearer ${token}` }
 		});
-		const data = await res.json();
 
-		const pending = data.projects.find(p => !p.contractorApproved);
+		const data = await res.json();
+		const pending = data?.projects?.find(p => !p.contractorApproved);
 
 		if (pending) setPendingApprovalProject(pending);
 	}
 
 	async function fetchStats() {
-		try {
-			const token = sessionStorage.getItem("token");
-			const res = await fetch("/api/contractors/projects", {
-				headers: { Authorization: `Bearer ${token}` }
-			});
-			const data = await res.json();
+		const token = sessionStorage.getItem("token");
 
-			setStats({
-				projects: data?.projects?.length || 0,
-				payments: data?.payments || 0
-			});
-		} catch {}
+		const res = await fetch("/api/contractors/projects", {
+			headers: { Authorization: `Bearer ${token}` }
+		});
+
+		const data = await res.json();
+		setStats({
+			projects: data.projects?.length || 0,
+			payments: data.payments || 0
+		});
 	}
 
 	async function fetchNewQueries() {
-		try {
-			const token = sessionStorage.getItem("token");
-			const res = await fetch("/api/contractors/queries", {
-				headers: { Authorization: `Bearer ${token}` }
-			});
-			const data = await res.json();
-			setNewQueries(data.newQueries || 0);
-		} catch {
-			setNewQueries(0);
-		}
+		const token = sessionStorage.getItem("token");
+
+		const res = await fetch("/api/contractors/queries", {
+			headers: { Authorization: `Bearer ${token}` }
+		});
+
+		const data = await res.json();
+		setNewQueries(data.newQueries || 0);
 	}
 
 	useEffect(() => {
@@ -149,13 +119,12 @@ export default function ContractorDashboard({ setActivePage }) {
 		checkApprovalPopup();
 	}, []);
 
-	// ======================================================
-	// LOAD PROJECT TABLE — WITH STAGES + DRAWINGS
-	// ======================================================
+	/* -------------------------------------------
+		  LOAD PROJECT TABLE (WITH UNREAD)
+	--------------------------------------------*/
 	async function loadProjectsTable() {
 		setSelectedView("projects");
 		setTableLoading(true);
-		setCurrentPage(1);
 
 		try {
 			const token = sessionStorage.getItem("token");
@@ -163,56 +132,45 @@ export default function ContractorDashboard({ setActivePage }) {
 			const res = await fetch("/api/contractors/projects", {
 				headers: { Authorization: `Bearer ${token}` }
 			});
+
 			const data = await res.json();
 
 			const typeRes = await fetch("/api/project-types");
 			const typeData = await typeRes.json();
+
 			const projectTypes = typeData.types || [];
 
 			const fullData = await Promise.all(
 				data.projects.map(async (p) => {
+					const sRes = await fetch(`/api/project-stages/list?projectId=${p.id}`, {
+						headers: { Authorization: `Bearer ${token}` }
+					});
 
-					// ⭐ GET ALL PROJECT STAGES (not only contractor assigned)
-					const sRes = await fetch(
-						`/api/project-stages/list?projectId=${p.id}`,
-						{ headers: { Authorization: `Bearer ${token}` } }
+					const stageData = await sRes.json();
+					const stages = stageData.stages || [];
+
+					const unreadTotal = stages.reduce(
+						(sum, st) => sum + (st.unreadRemarks || 0), 0
 					);
-
-					const dRes = await fetch(
-						`/api/contractors/drawings?projectId=${p.id}`,
-						{ headers: { Authorization: `Bearer ${token}` } }
-					);
-
-					const stages = await sRes.json();
-					const drawings = await dRes.json();
-
-					const typeName =
-						projectTypes.find((t) => t.id === p.projectTypeId)?.name || "N/A";
 
 					return {
 						...p,
-						projectTypeName: typeName,
-
-						// ⭐ FIX: Always return ALL stages
-						projectStages:
-							stages.stages ||
-							stages.projectStages ||
-							stages.data?.stages ||
-							[],
-
-						projectDrawings: drawings.drawings || []
+						projectTypeName: projectTypes.find(t => t.id === p.projectTypeId)?.name || "N/A",
+						projectStages: stages,
+						unreadRemarksTotal: unreadTotal
 					};
 				})
 			);
 
 			setTableData(fullData);
+
 		} finally {
 			setTableLoading(false);
 		}
 	}
-
-
-	// FILE TYPE HELPERS
+	/* -------------------------------------------
+		  FILE TYPE HELPERS
+	--------------------------------------------*/
 	const isImage = (url) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
 	const isVideo = (url) => /\.(mp4|mov)$/i.test(url);
 	const isPDF = (url) => /\.pdf$/i.test(url);
@@ -232,24 +190,29 @@ export default function ContractorDashboard({ setActivePage }) {
 
 	const downloadFile = async () => {
 		if (!previewFile || !previewDrawing) return;
+
 		const response = await fetch(previewFile);
 		const blob = await response.blob();
 		const url = window.URL.createObjectURL(blob);
-		const link = document.createElement("a");
+
+		const a = document.createElement("a");
 		const ext = previewFile.split(".").pop();
-		link.href = url;
-		link.setAttribute("download", `${previewDrawing.title}.${ext}`);
-		document.body.appendChild(link);
-		link.click();
-		link.remove();
+
+		a.href = url;
+		a.download = `${previewDrawing.title}.${ext}`;
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+
 		URL.revokeObjectURL(url);
 	};
 
-	// ======================================================
-	// Approve new project
-	// ======================================================
+	/* -------------------------------------------
+		  APPROVE PROJECT POPUP
+	--------------------------------------------*/
 	async function approveProject() {
 		const token = sessionStorage.getItem("token");
+
 		await fetch(`/api/projects/${pendingApprovalProject.id}/approve`, {
 			method: "PUT",
 			headers: { Authorization: `Bearer ${token}` }
@@ -257,16 +220,18 @@ export default function ContractorDashboard({ setActivePage }) {
 
 		setPendingApprovalProject(null);
 		checkApprovalPopup();
-	};
-	// ======================================================
-	// Load Stage Remarks (Admin Style)
-	// ======================================================
+	}
+
+	/* -------------------------------------------
+		  OPEN STAGE CHAT PANEL
+	--------------------------------------------*/
 	const openStageSheet = async (stage) => {
 		setSelectedStage(stage);
 		setRemarkFetching(true);
 		setStageRemarks([]);
 
 		const token = sessionStorage.getItem("token");
+
 		const res = await fetch(`/api/stages/${stage.id}/remarks`, {
 			headers: { Authorization: `Bearer ${token}` }
 		});
@@ -284,9 +249,9 @@ export default function ContractorDashboard({ setActivePage }) {
 		setRemarkFetching(false);
 	};
 
-	// ======================================================
-	// Send Stage Remark
-	// ======================================================
+	/* -------------------------------------------
+		  SEND REMARK
+	--------------------------------------------*/
 	const sendRemark = async () => {
 		if (!remarkText.trim()) return;
 
@@ -300,18 +265,17 @@ export default function ContractorDashboard({ setActivePage }) {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`
 			},
-			body: JSON.stringify({
-				message: remarkText,
-				by: "contractor"
-			})
+			body: JSON.stringify({ message: remarkText, by: "contractor" })
 		});
 
 		setRemarkText("");
+
+		// refresh chat
 		openStageSheet(selectedStage);
+
 		setRemarkLoading(false);
 	};
 
-	// Format Date
 	const formatDate = (d) =>
 		new Date(d).toLocaleString("en-IN", {
 			day: "2-digit",
@@ -322,20 +286,34 @@ export default function ContractorDashboard({ setActivePage }) {
 		});
 
 	useEffect(() => {
-		if (remarkEndRef.current) {
-			remarkEndRef.current.scrollIntoView({ behavior: "smooth" });
-		}
+		remarkEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [stageRemarks]);
 
-	// ======================================================
-	// UI START
-	// ======================================================
+	/* -------------------------------------------
+		  FLOOR SORTING
+	--------------------------------------------*/
+	function sortFloors(name) {
+		const n = name.toLowerCase();
+
+		if (n.includes("basement")) return -2;
+		if (n.includes("ground")) return -1;
+
+		const num = n.match(/\d+/);
+		if (num) return parseInt(num[0]);
+
+		if (n.includes("terrace") || n.includes("roof")) return 999;
+
+		return 500;
+	}
+	/* -------------------------------------------
+		  UI START
+	--------------------------------------------*/
 	return (
 		<div className="p-8 min-h-screen bg-gradient-to-br from-gray-100 to-gray-50">
 
-			{/* ======================================================== */}
+			{/* ------------------------------------------- */}
 			{/* APPROVAL POPUP */}
-			{/* ======================================================== */}
+			{/* ------------------------------------------- */}
 			{pendingApprovalProject && (
 				<Dialog open={true}>
 					<DialogContent className="max-w-lg text-center space-y-4">
@@ -345,9 +323,8 @@ export default function ContractorDashboard({ setActivePage }) {
 							</DialogTitle>
 						</DialogHeader>
 
-						<p className="text-gray-700 text-sm">
-							A new project has been assigned to you.
-							Please approve to continue.
+						<p className="text-gray-700">
+							A new project was assigned to you. Please approve to continue.
 						</p>
 
 						<div className="p-4 bg-gray-100 rounded-md text-left">
@@ -363,14 +340,15 @@ export default function ContractorDashboard({ setActivePage }) {
 				</Dialog>
 			)}
 
-			{/* ======================================================== */}
-			{/* HEADER */}
-			{/* ======================================================== */}
+			{/* ------------------------------------------- */}
+			{/* DASHBOARD HEADER */}
+			{/* ------------------------------------------- */}
 			<div className="flex justify-between items-center mb-8">
 				<h1 className="text-3xl font-bold text-gray-800">
 					Contractor Dashboard
 				</h1>
 
+				{/* 🔔 NEW QUERIES BADGE */}
 				<div
 					className="relative cursor-pointer"
 					onClick={() => setActivePage("Query")}
@@ -378,18 +356,21 @@ export default function ContractorDashboard({ setActivePage }) {
 					<Bell className="h-7 w-7 text-gray-700" />
 					{newQueries > 0 && (
 						<span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">
-                            {newQueries}
-                        </span>
+              {newQueries}
+            </span>
 					)}
 				</div>
 			</div>
 
-			{/* ======================================================== */}
-			{/* TOP CARDS */}
-			{/* ======================================================== */}
+			{/* ------------------------------------------- */}
+			{/* TOP CARDS (Projects / Stages / Drawings / Payments) */}
+			{/* ------------------------------------------- */}
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+
+				{/* PROJECTS CARD */}
 				<Card
-					className="shadow-md hover:shadow-2xl cursor-pointer bg-white/80 backdrop-blur border border-purple-200 hover:scale-[1.01] transition"
+					className="shadow-md hover:shadow-2xl cursor-pointer bg-white/80 backdrop-blur
+          border border-purple-200 hover:scale-[1.01] transition"
 					onClick={loadProjectsTable}
 				>
 					<CardHeader className="flex justify-between items-center">
@@ -400,12 +381,14 @@ export default function ContractorDashboard({ setActivePage }) {
 						<p className="text-4xl font-extrabold text-purple-700">
 							{stats.projects}
 						</p>
-						<p className="text-xs text-gray-400 mt-1">Click to view</p>
+						<p className="text-xs text-gray-400">Click to view</p>
 					</CardContent>
 				</Card>
 
+				{/* STAGES CARD */}
 				<Card
-					className="shadow-md hover:shadow-2xl cursor-pointer bg-white/80 backdrop-blur border border-blue-200 hover:scale-[1.01] transition"
+					className="shadow-md hover:shadow-2xl cursor-pointer bg-white/80 backdrop-blur
+          border border-blue-200 hover:scale-[1.01] transition"
 					onClick={() => setActivePage("Stage")}
 				>
 					<CardHeader className="flex justify-between items-center">
@@ -417,8 +400,10 @@ export default function ContractorDashboard({ setActivePage }) {
 					</CardContent>
 				</Card>
 
+				{/* DRAWINGS CARD */}
 				<Card
-					className="shadow-md hover:shadow-2xl cursor-pointer bg-white/80 backdrop-blur border border-orange-200 hover:scale-[1.01] transition"
+					className="shadow-md hover:shadow-2xl cursor-pointer bg-white/80 backdrop-blur
+          border border-orange-200 hover:scale-[1.01] transition"
 					onClick={() => setActivePage("Drawing")}
 				>
 					<CardHeader className="flex justify-between items-center">
@@ -430,6 +415,7 @@ export default function ContractorDashboard({ setActivePage }) {
 					</CardContent>
 				</Card>
 
+				{/* PAYMENTS CARD */}
 				<Card
 					className="shadow-md hover:shadow-2xl bg-white/80 backdrop-blur border border-teal-200 hover:scale-[1.01] transition"
 				>
@@ -445,9 +431,9 @@ export default function ContractorDashboard({ setActivePage }) {
 				</Card>
 			</div>
 
-			{/* ======================================================== */}
-			{/* PROJECT TABLE */}
-			{/* ======================================================== */}
+			{/* ------------------------------------------- */}
+			{/* PROJECT TABLE (ADMIN STYLE) */}
+			{/* ------------------------------------------- */}
 			{selectedView === "projects" && (
 				<Card className="shadow-xl p-6 bg-white/90 border backdrop-blur rounded-xl">
 					<h2 className="text-xl font-bold mb-3">Project Details</h2>
@@ -473,34 +459,36 @@ export default function ContractorDashboard({ setActivePage }) {
 									<TableBody>
 										{paginatedData.length === 0 ? (
 											<TableRow>
-												<TableCell
-													colSpan="5"
-													className="text-center text-gray-500 py-6"
-												>
+												<TableCell colSpan="5" className="text-center text-gray-500 py-6">
 													No projects found
 												</TableCell>
 											</TableRow>
 										) : (
 											paginatedData.map((p, i) => (
-												<TableRow
-													key={i}
-													className="hover:bg-gray-50 transition"
-												>
+												<TableRow key={i} className="hover:bg-gray-50 transition">
 													<TableCell>{p.title}</TableCell>
 													<TableCell>{p.projectTypeName}</TableCell>
 													<TableCell>{p.client?.name}</TableCell>
 													<TableCell>₹ {p.totalCost || "-"}</TableCell>
 
+													{/* ACTION BUTTON + PROJECT UNREAD BADGE */}
 													<TableCell className="flex gap-2 justify-center">
-														<Button
-															variant="default"
-															size="sm"
-															onClick={() =>
-																setOpenProjectSheet(p)
-															}
-														>
-															View Stages
-														</Button>
+														<div className="relative inline-block">
+															<Button
+																variant="default"
+																size="sm"
+																onClick={() => setOpenProjectSheet(p)}
+															>
+																View Stages
+															</Button>
+
+															{/* 🔥 UNREAD PROJECT BADGE (SUM OF ALL STAGES) */}
+															{p.unreadRemarksTotal > 0 && (
+																<span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] px-[5px] h-4 min-w-4 flex items-center justify-center rounded-full shadow">
+                                  {p.unreadRemarksTotal}
+                                </span>
+															)}
+														</div>
 													</TableCell>
 												</TableRow>
 											))
@@ -508,30 +496,26 @@ export default function ContractorDashboard({ setActivePage }) {
 									</TableBody>
 								</Table>
 							</div>
+
+							{/* PAGINATION */}
 							{tableData.length > itemsPerPage && (
 								<Pagination className="mt-4">
 									<PaginationContent>
 										<PaginationItem>
 											<PaginationPrevious
-												onClick={() =>
-													currentPage > 1 &&
-													setCurrentPage(currentPage - 1)
-												}
+												onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
 												className="cursor-pointer"
 											/>
 										</PaginationItem>
 
 										<PaginationItem>
-                                            <span className="px-4">
-                                                Page {currentPage} of {totalPages}
-                                            </span>
+											<span className="px-4">Page {currentPage} of {totalPages}</span>
 										</PaginationItem>
 
 										<PaginationItem>
 											<PaginationNext
 												onClick={() =>
-													currentPage < totalPages &&
-													setCurrentPage(currentPage + 1)
+													currentPage < totalPages && setCurrentPage(currentPage + 1)
 												}
 												className="cursor-pointer"
 											/>
@@ -543,10 +527,9 @@ export default function ContractorDashboard({ setActivePage }) {
 					)}
 				</Card>
 			)}
-
-			{/* ======================================================== */}
-			{/* ADMIN STYLE — PROJECT SHEET (TIMELINE + REMARKS) */}
-			{/* ======================================================== */}
+			{/* ----------------------------------------------------- */}
+			{/* PROJECT SHEET — FLOORWISE STAGES + CHAT PANEL */}
+			{/* ----------------------------------------------------- */}
 			{openProjectSheet && (
 				<Sheet
 					open={true}
@@ -555,8 +538,10 @@ export default function ContractorDashboard({ setActivePage }) {
 						setSelectedStage(null);
 					}}
 				>
-					<SheetContent side="right" className="w-[470px] overflow-auto">
-						<SheetHeader>
+					<SheetContent side="right" className="w-[470px] p-0 flex flex-col">
+
+						{/* HEADER – always visible */}
+						<SheetHeader className="p-4 border-b bg-white">
 							<SheetTitle className="text-xl font-bold">
 								{openProjectSheet.title}
 							</SheetTitle>
@@ -565,234 +550,226 @@ export default function ContractorDashboard({ setActivePage }) {
 							</SheetDescription>
 						</SheetHeader>
 
-						{/* ================================================== */}
-						{/* SELECTED STAGE CHAT VIEW */}
-						{/* ================================================== */}
-						{selectedStage ? (
-							<div className="animate-fadeIn">
+
+						{!selectedStage && (
+							<div className="max-h-[85vh] overflow-y-auto p-5 relative">
+
+								{Object.entries(
+									openProjectSheet.projectStages.reduce((acc, s) => {
+										const floor = s.floorName || "Other";
+										(acc[floor] = acc[floor] || []).push(s);
+										return acc;
+									}, {})
+								)
+									.sort(([a], [b]) => sortFloors(a) - sortFloors(b))
+									.map(([floor, stages]) => (
+
+										<div key={floor} className="mb-6 relative">
+
+											{/* FLOOR TITLE */}
+											<h3 className="text-lg font-semibold bg-gray-100 p-2 rounded">
+												{floor}
+											</h3>
+
+											{/* FIXED TIMELINE STRIP (ONE PER FLOOR) */}
+											<div
+												className="absolute left-[16px] top-[48px] bottom-0 w-[4px]
+				                                        bg-gradient-to-b from-green-500 via-gray-300 to-gray-300 rounded-full"
+											/>
+
+											{/* STAGES */}
+											<div className="relative pl-8 space-y-7 mt-4">
+
+												{stages.map((s, index) => {
+													const status = s.status?.toLowerCase();
+													const isApproved = status === "approved";
+													const isCompleted = status === "completed";
+													const isRejected = status === "rejected";
+													const isPending = status === "pending" || status === "in_progress";
+
+													const prevDone =
+														index === 0 ||
+														["approved", "completed"].includes(stages[index - 1].status);
+
+													const isCurrent = isPending && prevDone;
+
+													const icon = (() => {
+														if (isApproved)
+															return <div className="h-7 w-7 rounded-full bg-green-600 text-white flex items-center justify-center shadow">✓</div>;
+														if (isCompleted)
+															return <div className="h-7 w-7 rounded-full bg-blue-600 text-white flex items-center justify-center shadow">✓</div>;
+														if (isRejected)
+															return <div className="h-7 w-7 rounded-full bg-red-600 text-white flex items-center justify-center shadow">✗</div>;
+														if (isCurrent)
+															return <div className="h-7 w-7 rounded-full bg-black text-white flex items-center justify-center shadow">{index + 1}</div>;
+
+														return <div className="h-6 w-6 rounded-full bg-gray-300 text-gray-700 flex items-center justify-center">{index + 1}</div>;
+													})();
+
+													return (
+														<div
+															key={s.id}
+															onClick={() => openStageSheet(s)}
+															className="relative flex items-center gap-4 cursor-pointer"
+														>
+															<div className="relative z-10">{icon}</div>
+
+															<div className="flex flex-col">
+																<div className="flex items-center gap-2">
+
+																	{/* STAGE NAME */}
+																	<p className={`text-[16px] font-medium ${
+																		isCurrent
+																			? "bg-gray-100 border px-3 py-1.5 rounded-lg shadow"
+																			: "text-gray-700"
+																	}`}>
+																		{s.StageTemplate?.name || s.name}
+																	</p>
+
+																	{/* UNREAD BADGE */}
+																	{s.unreadRemarks > 0 && (
+																		<span className="bg-red-600 text-white text-[10px] px-2 py-[2px] rounded-full shadow">
+											{s.unreadRemarks}
+										</span>
+																	)}
+
+																</div>
+
+																{/* STATUS */}
+																<p className="text-xs mt-1">
+																	{isApproved && <span className="text-green-600 font-semibold">Approved</span>}
+																	{isCompleted && <span className="text-blue-600 font-semibold">Completed</span>}
+																	{isRejected && <span className="text-red-600 font-semibold">Rejected</span>}
+																	{isPending && <span className="text-gray-500">Pending</span>}
+																</p>
+															</div>
+														</div>
+													);
+												})}
+
+											</div>
+										</div>
+									))}
+
+
+							</div>
+						)}
+
+						{/* ------------------------------------------------- */}
+						{/* VIEW 2: CHAT PANEL (when stage selected) */}
+						{/* ------------------------------------------------- */}
+						{selectedStage && (
+							<div className="flex flex-col h-full">
+
 								{/* HEADER */}
-								<div className="flex items-center gap-3 border-b pb-3 sticky top-0 bg-white z-30">
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => setSelectedStage(null)}
-									>
-										<ChevronLeft className="h-5 w-5" />
-									</Button>
-									<h2 className="text-xl font-bold">
-										{selectedStage.StageTemplate?.name || selectedStage.name}
-									</h2>
+								<div className="px-4 py-3 border-b bg-white sticky top-0 z-30 shadow-sm">
+									<div className="flex items-center gap-3">
+										<Button variant="ghost" size="icon" onClick={() => setSelectedStage(null)}>
+											<ChevronLeft className="h-5 w-5" />
+										</Button>
+
+										<h3 className="font-semibold text-lg">
+											{selectedStage.StageTemplate?.name || selectedStage.name}
+										</h3>
+									</div>
 								</div>
 
-								{/* REMARK LIST */}
-								<div className="max-h-[70vh] overflow-y-auto py-4 space-y-3 p-3">
+								{/* CHAT BODY */}
+								<div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-gray-100"
+								     style={{ paddingBottom: "110px" }}
+								>
 									{remarkFetching ? (
-										<div className="flex justify-center py-6">
+										<div className="flex justify-center py-10">
 											<Loader2 className="h-6 w-6 animate-spin" />
 										</div>
-									) : stageRemarks.length > 0 ? (
-										stageRemarks.map((r) => {
-											let color = "bg-gray-200 border-gray-300";
-											if (r.by === "admin") color = "bg-red-100 border-red-300";
-											if (r.by === "contractor") color = "bg-blue-100 border-blue-300";
+									) : (
+										stageRemarks.map((r, i) => {
+											const msgDate = new Date(r.createdAt);
+											const isMe = r.by === "contractor";
 
 											return (
-												<div
-													key={r.id}
-													className={`p-3 rounded-lg shadow-sm text-sm border ${color}`}
-												>
-													<b className="text-xs capitalize">{r.by}</b>
-													<p className="mt-1">{r.message}</p>
-													<p className="text-[10px] opacity-60 mt-1">
-														{formatDate(r.createdAt)}
-													</p>
+												<div key={r.id}>
+
+													<div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+														<div
+															className={`max-w-[75%] px-3 py-2 rounded-xl border shadow-sm
+                          ${isMe
+																? "bg-primary text-primary-foreground border-primary"
+																: r.by === "admin"
+																	? "bg-red-200 border-red-300 text-red-900"
+																	: "bg-white border-gray-300 text-gray-800"
+															}
+                        `}
+														>
+															<p className="text-[10px] opacity-70 mb-1">
+																{isMe ? "You" : r.by === "admin" ? "Admin" : "Client"}
+															</p>
+
+															<p className="whitespace-pre-wrap">{r.message}</p>
+
+															<p className="text-[10px] opacity-70 text-right mt-1">
+																{msgDate.toLocaleTimeString("en-IN", {
+																	hour: "2-digit",
+																	minute: "2-digit"
+																})}
+															</p>
+
+														</div>
+													</div>
+
 												</div>
 											);
 										})
-									) : (
-										<p className="text-sm text-gray-500">No remarks</p>
 									)}
 
 									<div ref={remarkEndRef} />
 
-									{/* MESSAGE INPUT */}
+								</div>
+
+								{/* SEND BOX */}
+								<div className="p-3 bg-white border-t flex gap-2 sticky bottom-0 z-40 shadow">
 									<Textarea
-										placeholder="Write message..."
+										placeholder="Type message..."
 										value={remarkText}
 										onChange={(e) => setRemarkText(e.target.value)}
-										className="h-24"
+										className="h-16 resize-none flex-1"
 									/>
 
-									<SheetFooter>
-										<Button
-											className="w-full"
-											disabled={remarkLoading}
-											onClick={sendRemark}
-										>
-											{remarkLoading ? (
-												<Loader2 className="animate-spin h-4 w-4" />
-											) : (
-												"Send"
-											)}
-										</Button>
-									</SheetFooter>
+									<Button className="h-16 px-6 rounded-xl"
+									        disabled={remarkLoading}
+									        onClick={sendRemark}
+									>
+										{remarkLoading ? <Loader2 className="animate-spin h-4 w-4" /> : "Send"}
+									</Button>
+
 								</div>
+
 							</div>
-						) : (
-							<>
-								{/* ================================================== */}
-								{/* TIMELINE STAGE LIST */}
-								{/* ================================================== */}
-								<div className="sticky top-0 bg-white pb-3 border-b pt-3 z-20">
-									<SheetHeader>
-										<SheetTitle className="text-lg font-bold">
-											Work Stages
-										</SheetTitle>
-										<SheetDescription className="text-gray-600">
-											Click a stage to view remarks
-										</SheetDescription>
-									</SheetHeader>
-								</div>
-
-								<div className="mt-6 max-h-[80vh] relative pl-10 space-y-6 p-4">
-									<div className="absolute top-2 left-5 w-[3px] h-full bg-gradient-to-b from-green-500 via-gray-300 to-gray-300 rounded-full"></div>
-
-									{openProjectSheet.projectStages.length > 0 ? (
-										openProjectSheet.projectStages.map((s, index) => {
-
-											const status = s.status?.toLowerCase();
-
-											// STATUS TYPES
-											const isApproved = status === "approved";
-											const isCompleted = status === "completed";
-											const isRejected = status === "rejected";
-											const isPending = status === "pending" || status === "in_progress";
-
-											// Check previous completed stage
-											const prevDone =
-												index === 0 ||
-												["approved", "completed"].includes(
-													openProjectSheet.projectStages[index - 1].status
-												);
-
-											const isCurrent = isPending && prevDone;
-
-											// ICON UI
-											const icon = (() => {
-												if (isApproved)
-													return (
-														<div className="h-7 w-7 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold shadow-md">
-															✓
-														</div>
-													);
-
-												if (isCompleted)
-													return (
-														<div className="h-7 w-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-md">
-															✓
-														</div>
-													);
-
-												if (isRejected)
-													return (
-														<div className="h-7 w-7 rounded-full bg-red-600 text-white flex items-center justify-center text-sm font-bold shadow-md">
-															✗
-														</div>
-													);
-
-												if (isCurrent)
-													return (
-														<div className="h-7 w-7 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold shadow-md">
-															{index + 1}
-														</div>
-													);
-
-												return (
-													<div className="h-6 w-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-xs">
-														{index + 1}
-													</div>
-												);
-											})();
-
-											return (
-												<div
-													key={s.id}
-													onClick={() => openStageSheet(s)}
-													className="relative flex items-start gap-4 cursor-pointer"
-												>
-													{/* CIRCLE ICON */}
-													<div className="relative z-10 mt-1">
-														{icon}
-													</div>
-
-													{/* NAME + STATUS */}
-													<div className="flex flex-col">
-														<p
-															className={`text-[16px] font-medium ${
-																isCurrent
-																	? "bg-gray-100 border px-3 py-1.5 rounded-lg shadow-sm"
-																	: "text-gray-700"
-															}`}
-														>
-															{s.StageTemplate?.name || s.name}
-														</p>
-
-														{/* STATUS LABEL */}
-														<p className="text-xs mt-1">
-															{isApproved && (
-																<span className="text-green-600 font-semibold">Approved</span>
-															)}
-															{isCompleted && (
-																<span className="text-blue-600 font-semibold">Completed</span>
-															)}
-															{isRejected && (
-																<span className="text-red-600 font-semibold">Rejected</span>
-															)}
-															{isPending && (
-																<span className="text-gray-500">Pending</span>
-															)}
-														</p>
-													</div>
-												</div>
-											);
-										})
-									) : (
-										<p className="text-gray-500 text-center py-4">No stages found</p>
-									)}
-
-								</div>
-							</>
 						)}
+
 					</SheetContent>
 				</Sheet>
 			)}
 
-			{/* ======================================================== */}
-			{/* DRAWING PREVIEW MODAL */}
-			{/* ======================================================== */}
+
+
+
 			{previewFile && (
 				<Dialog open={true} onOpenChange={() => setPreviewFile(null)}>
-					<DialogContent className="max-w-screen flex flex-col">
+					<DialogContent className="max-w-screen-lg max-h-screen flex flex-col overflow-hidden">
 						<DialogHeader>
-							<DialogTitle>Drawing Preview</DialogTitle>
-							<p className="text-sm text-gray-600">
-								{previewDrawing?.title}
-							</p>
+							<DialogTitle className="text-lg font-bold">Drawing Preview</DialogTitle>
+							<p className="text-sm text-gray-600">{previewDrawing?.title}</p>
 						</DialogHeader>
 
-						<div className="flex-1 overflow-auto bg-gray-100 rounded p-2 border">
+						{/* MAIN PREVIEW */}
+						<div className="flex-1 overflow-auto bg-gray-100 border rounded p-3">
 							{isPDF(previewFile) && (
-								<iframe
-									src={previewFile}
-									className="w-full h-full rounded"
-								/>
+								<iframe src={previewFile} className="w-full h-full border rounded" />
 							)}
 
 							{isImage(previewFile) && (
-								<img
-									src={previewFile}
-									className="w-full h-auto mx-auto rounded shadow-lg"
-								/>
+								<img src={previewFile} className="w-full h-auto mx-auto rounded shadow-lg" />
 							)}
 
 							{isVideo(previewFile) && (
@@ -802,24 +779,21 @@ export default function ContractorDashboard({ setActivePage }) {
 							)}
 						</div>
 
-						{/* Thumbnail strip */}
+						{/* THUMB LIST */}
 						{projectDrawings.length > 1 && (
 							<div className="flex gap-3 mt-3 overflow-x-auto border-t pt-3">
 								{projectDrawings.map((pf) => (
 									<div
 										key={pf.id}
 										onClick={() => openPreview(pf, projectDrawings)}
-										className={`border rounded cursor-pointer p-1 ${
+										className={`border rounded cursor-pointer p-1 transition ${
 											previewFile === pf.fileUrl
-												? "border-blue-500"
-												: "border-gray-300"
+												? "border-blue-500 shadow-md"
+												: "border-gray-300 hover:border-blue-300"
 										}`}
 									>
 										{isImage(pf.fileUrl) ? (
-											<img
-												src={pf.fileUrl}
-												className="w-20 h-20 object-cover rounded"
-											/>
+											<img src={pf.fileUrl} className="w-20 h-20 object-cover rounded" />
 										) : isPDF(pf.fileUrl) ? (
 											<div className="w-20 h-20 flex items-center justify-center bg-red-100 rounded">
 												<FileText className="text-red-500 w-6 h-6" />
@@ -834,20 +808,19 @@ export default function ContractorDashboard({ setActivePage }) {
 							</div>
 						)}
 
+						{/* FOOTER */}
 						<div className="mt-3 flex justify-between">
 							<Button variant="outline" onClick={downloadFile}>
 								<Download className="w-4 h-4 mr-2" />
 								Download
 							</Button>
 
-							<Button onClick={() => setPreviewFile(null)}>
-								Close
-							</Button>
+							<Button onClick={() => setPreviewFile(null)}>Close</Button>
 						</div>
 					</DialogContent>
 				</Dialog>
 			)}
+
 		</div>
 	);
 }
-

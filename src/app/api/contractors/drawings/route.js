@@ -3,13 +3,15 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import Drawing from "@/models/Drawing";
 import Project from "@/models/Project";
-import Client from "@/models/Client"; // ✅ added
+import Client from "@/models/Client";
+import ProjectType from "@/models/ProjectType"; // ✅ added
 import "@/lib/db";
 
 export async function GET(req) {
 	try {
 		const authHeader = req.headers.get("authorization");
-		if (!authHeader) return NextResponse.json({ success: false, message: "No token" }, { status: 401 });
+		if (!authHeader)
+			return NextResponse.json({ success: false, message: "No token" }, { status: 401 });
 
 		const token = authHeader.split(" ")[1];
 		const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -25,15 +27,20 @@ export async function GET(req) {
 				{
 					model: Project,
 					as: "project",
-					attributes: ["id", "title", "contractorId"],
+					attributes: ["id", "title", "projectUid", "contractorId"],
 					include: [
 						{
 							model: Client,
 							as: "client",
-							attributes: ["name"]
-						}
-					]
-				}
+							attributes: ["name"],
+						},
+						{
+							model: ProjectType,
+							as: "projectType",
+							attributes: ["name"], // ✅ now included
+						},
+					],
+				},
 			],
 			where: { "$project.contractorId$": contractorId },
 			order: [["id", "ASC"]],
@@ -46,4 +53,3 @@ export async function GET(req) {
 		return NextResponse.json({ success: false, message: err.message }, { status: 500 });
 	}
 }
-
