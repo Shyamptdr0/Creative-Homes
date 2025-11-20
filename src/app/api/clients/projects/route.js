@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import Project from "@/models/Project";
 import Client from "@/models/Client";
 import Contractor from "@/models/Contractor";
-import Stage from "@/models/Stage";
+// import Stage from "@/models/Stage";
 import "@/lib/db";
 
 export async function GET(req) {
