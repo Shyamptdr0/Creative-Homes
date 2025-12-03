@@ -1,18 +1,41 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../lib/db.js";
+import ContractorType from "./ContractorType.js";
+import ContractorTypeAssignment from "./ContractorTypeAssignment.js";
 
-const Contractor = sequelize.define("Contractor", {
-	id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+const Contractor = sequelize.define(
+	"Contractor",
+	{
+		id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
 
-	contractorId: { type: DataTypes.STRING, unique: true, allowNull: false }, // auto generate
-	name: { type: DataTypes.STRING, allowNull: false },
-	email: { type: DataTypes.STRING, unique: true, allowNull: true },
-	phone: DataTypes.STRING,
-	address: DataTypes.STRING,
+		contractorId: { type: DataTypes.STRING, unique: true, allowNull: false },
 
-	password: { type: DataTypes.STRING, allowNull: false }, // hashed password
-	visiblePassword: { type: DataTypes.STRING, allowNull: false }, // store generated visible password
+		name: { type: DataTypes.STRING, allowNull: false },
+		email: { type: DataTypes.STRING, unique: true },
+		phone: DataTypes.STRING,
+		address: DataTypes.STRING,
 
-}, { tableName: "contractors" });
+		aadhaar: DataTypes.STRING,
+		pan: DataTypes.STRING,
+		photo: DataTypes.STRING,
+
+		password: { type: DataTypes.STRING, allowNull: false },
+		visiblePassword: { type: DataTypes.STRING, allowNull: false },
+	},
+	{ tableName: "contractors" }
+);
+
+// ⭐ ONLY ONE MANY-TO-MANY
+Contractor.belongsToMany(ContractorType, {
+	through: ContractorTypeAssignment,
+	foreignKey: "contractorId",
+	as: "types",
+});
+
+ContractorType.belongsToMany(Contractor, {
+	through: ContractorTypeAssignment,
+	foreignKey: "typeId",
+	as: "contractors",
+});
 
 export default Contractor;

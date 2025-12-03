@@ -13,7 +13,6 @@ function generateProjectId() {
 const Project = sequelize.define("Project", {
 	id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
 
-	// 🆕 Auto generated unique Project ID
 	projectUid: {
 		type: DataTypes.STRING,
 		unique: true,
@@ -36,8 +35,12 @@ const Project = sequelize.define("Project", {
 
 	startDate: { type: DataTypes.DATE },
 	endDate: { type: DataTypes.DATE },
+
 	totalCost: { type: DataTypes.FLOAT, defaultValue: 0 },
 	totalMaterialCost: { type: DataTypes.FLOAT, defaultValue: 0 },
+
+	// 🆕 REQUIRED FOR PAYMENT MODULE
+	totalAmount: { type: DataTypes.FLOAT, defaultValue: 0 },
 
 	clientApproved: { type: DataTypes.BOOLEAN, defaultValue: false },
 	contractorApproved: { type: DataTypes.BOOLEAN, defaultValue: false },

@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 let dialectModule;
+
+// Load mysql2 dynamically
 try {
 	const mysql = await import("mysql2");
 	dialectModule = mysql.default;
@@ -23,7 +25,7 @@ const sequelize = usingURL
 		dialectOptions: {
 			ssl: {
 				minVersion: "TLSv1.2",
-				rejectUnauthorized: false
+				rejectUnauthorized: false,
 			},
 		},
 	})
@@ -49,8 +51,19 @@ const sequelize = usingURL
 		}
 	);
 
-sequelize.authenticate()
+// Test DB connection
+sequelize
+	.authenticate()
 	.then(() => console.log("✅ DB Connected"))
-	.catch(err => console.error("❌ Database connection failed:", err));
+	.catch((err) => console.error("❌ Database connection failed:", err));
+
+/* ---------------------------------------------------------
+   🚀 AUTO SYNC MODELS WITH DATABASE
+   Adds missing columns (aadhaar, pan, photo), no data loss
+----------------------------------------------------------- */
+sequelize
+	.sync({ alter: true })
+	.then(() => console.log("🔄 Database synced with models"))
+	.catch((err) => console.error("❌ Sync error:", err));
 
 export default sequelize;

@@ -18,7 +18,7 @@ import {
 import {
 	Loader2, FolderKanban, Wallet, Bell, FileText,
 	Image as ImageIcon, Video, File, Download,
-	ListChecks, PencilRuler, ChevronLeft
+	ListChecks, PencilRuler, ChevronLeft, MessageCircle
 } from "lucide-react";
 
 import {
@@ -244,13 +244,29 @@ export default function ContractorDashboard({ setActivePage }) {
 					(a, b) => new Date(a.createdAt) - new Date(b.createdAt)
 				)
 			);
+
+			// update unread counts in the projectStages inside tableData (if present)
+			setTableData((prev) =>
+				prev.map((proj) => {
+					if (!proj.projectStages) return proj;
+					return {
+						...proj,
+						projectStages: proj.projectStages.map((st) =>
+							st.id === stage.id ? { ...st, unreadRemarks: 0 } : st
+						),
+						unreadRemarksTotal: proj.projectStages
+							? proj.projectStages.reduce((sum, s) => sum + (s.unreadRemarks || 0), 0)
+							: proj.unreadRemarksTotal
+					};
+				})
+			);
 		}
 
 		setRemarkFetching(false);
 	};
 
 	/* -------------------------------------------
-		  SEND REMARK
+		  SEND REMARK (FIXED)
 	--------------------------------------------*/
 	const sendRemark = async () => {
 		if (!remarkText.trim()) return;
@@ -259,19 +275,39 @@ export default function ContractorDashboard({ setActivePage }) {
 
 		const token = sessionStorage.getItem("token");
 
-		await fetch(`/api/stages/${selectedStage.id}`, {
-			method: "PUT",
+		// *** FIX: POST/PUT to /api/stages/:id/remarks and body should have { message }
+		const res = await fetch(`/api/stages/${selectedStage.id}/remarks`, {
+			method: "PUT", // matches your API route
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`
 			},
-			body: JSON.stringify({ message: remarkText, by: "contractor" })
+			body: JSON.stringify({ message: remarkText.trim() })
 		});
 
-		setRemarkText("");
+		const data = await res.json();
 
-		// refresh chat
-		openStageSheet(selectedStage);
+		if (data.success) {
+			// Append returned remark (server returns remark object)
+			// If server returns data.remark, use it; otherwise create fallback
+			const newRemark = data.remark || {
+				id: Date.now(),
+				by: "contractor",
+				message: remarkText.trim(),
+				createdAt: new Date().toISOString()
+			};
+
+			// Update local chat immediately
+			setStageRemarks((prev) => [...prev, newRemark]);
+
+			// Clear input
+			setRemarkText("");
+
+			// Refresh remarks from server to ensure isRead flags and senderName are correct
+			await openStageSheet(selectedStage);
+		} else {
+			toast?.error?.("Failed to send remark");
+		}
 
 		setRemarkLoading(false);
 	};
@@ -293,7 +329,7 @@ export default function ContractorDashboard({ setActivePage }) {
 		  FLOOR SORTING
 	--------------------------------------------*/
 	function sortFloors(name) {
-		const n = name.toLowerCase();
+		const n = (name || "").toLowerCase();
 
 		if (n.includes("basement")) return -2;
 		if (n.includes("ground")) return -1;
@@ -509,13 +545,13 @@ export default function ContractorDashboard({ setActivePage }) {
 										</PaginationItem>
 
 										<PaginationItem>
-											<span className="px-4">Page {currentPage} of {totalPages}</span>
+											<span className="px-4">Page {currentPage} of {Math.ceil(tableData.length / itemsPerPage)}</span>
 										</PaginationItem>
 
 										<PaginationItem>
 											<PaginationNext
 												onClick={() =>
-													currentPage < totalPages && setCurrentPage(currentPage + 1)
+													currentPage < Math.ceil(tableData.length / itemsPerPage) && setCurrentPage(currentPage + 1)
 												}
 												className="cursor-pointer"
 											/>
@@ -750,9 +786,6 @@ export default function ContractorDashboard({ setActivePage }) {
 					</SheetContent>
 				</Sheet>
 			)}
-
-
-
 
 			{previewFile && (
 				<Dialog open={true} onOpenChange={() => setPreviewFile(null)}>

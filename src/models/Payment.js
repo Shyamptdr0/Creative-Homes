@@ -1,38 +1,63 @@
-// models/Payment.js
 import { DataTypes } from "sequelize";
 import sequelize from "../lib/db.js";
+
 import Client from "./Client.js";
 import Contractor from "./Contractor.js";
 import Project from "./Project.js";
+import PaymentStage from "./PaymentStage.js";
+import PaymentInstallment from "./PaymentInstallment.js";
 
-const Payment = sequelize.define("Payment", {
-	id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+const Payment = sequelize.define(
+	"Payment",
+	{
+		id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
 
-	projectId: { type: DataTypes.INTEGER, allowNull: false },
-	clientId: { type: DataTypes.INTEGER },
-	contractorId: { type: DataTypes.INTEGER },
+		projectId: { type: DataTypes.INTEGER, allowNull: false },
+		stageId: { type: DataTypes.INTEGER, allowNull: false },
 
-	// Who is paying?
-	payerType: { type: DataTypes.ENUM("client", "admin"), allowNull: false },
+		clientId: { type: DataTypes.INTEGER, allowNull: true },
+		contractorId: { type: DataTypes.INTEGER, allowNull: true },
 
-	// Who is receiving?
-	receiverType: { type: DataTypes.ENUM("admin", "contractor"), allowNull: false },
+		payerType: { type: DataTypes.ENUM("client", "admin"), allowNull: false },
+		receiverType: {
+			type: DataTypes.ENUM("admin", "contractor"),
+			allowNull: false,
+		},
 
-	amount: { type: DataTypes.FLOAT, allowNull: false },
+		totalAmount: { type: DataTypes.FLOAT, allowNull: false },
+		paidAmount: { type: DataTypes.FLOAT, defaultValue: 0 },
 
-	installmentNo: { type: DataTypes.INTEGER, defaultValue: 1 },
-	totalInstallments: { type: DataTypes.INTEGER, defaultValue: 1 },
+		installmentCount: { type: DataTypes.INTEGER, defaultValue: 1 },
 
-	dueDate: { type: DataTypes.DATEONLY },
-	status: {
-		type: DataTypes.ENUM("pending", "completed", "overdue", "partial"),
-		defaultValue: "pending"
+		dueDate: { type: DataTypes.DATEONLY },
+		remarks: { type: DataTypes.TEXT },
+
+		status: {
+			type: DataTypes.ENUM("pending", "partial", "completed", "overdue"),
+			defaultValue: "pending",
+		},
 	},
-	notes: { type: DataTypes.TEXT },
+	{ tableName: "payments" }
+);
+
+// ------------------------------------
+// ALL ASSOCIATIONS HERE (SAFE)
+// ------------------------------------
+
+Payment.belongsTo(Project, { foreignKey: "projectId", as: "project" });
+Payment.belongsTo(PaymentStage, { foreignKey: "stageId", as: "stage" });
+Payment.belongsTo(Client, { foreignKey: "clientId", as: "client" });
+Payment.belongsTo(Contractor, { foreignKey: "contractorId", as: "contractor" });
+
+Payment.hasMany(PaymentInstallment, {
+	foreignKey: "paymentId",
+	as: "installments",
 });
 
-Payment.belongsTo(Project, { foreignKey: "projectId" });
-Payment.belongsTo(Client, { foreignKey: "clientId" });
-Payment.belongsTo(Contractor, { foreignKey: "contractorId" });
+// Reverse relation (safe here, Payment is already initialized)
+PaymentInstallment.belongsTo(Payment, {
+	foreignKey: "paymentId",
+	as: "payment",
+});
 
 export default Payment;
