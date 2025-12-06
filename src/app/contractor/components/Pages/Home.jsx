@@ -365,8 +365,7 @@ export default function ContractorDashboard({ setActivePage }) {
 
 						<div className="p-4 bg-gray-100 rounded-md text-left">
 							<p><b>Title:</b> {pendingApprovalProject.title}</p>
-							<p><b>Type:</b> {pendingApprovalProject.projectTypeName}</p>
-							<p><b>Cost:</b> ₹ {pendingApprovalProject.totalCost}</p>
+							<p><b>Rate:</b> ₹ {pendingApprovalProject.totalCost}</p>
 						</div>
 
 						<Button className="w-full" onClick={approveProject}>
@@ -487,7 +486,7 @@ export default function ContractorDashboard({ setActivePage }) {
 											<TableHead>Project</TableHead>
 											<TableHead>Type</TableHead>
 											<TableHead>Client</TableHead>
-											<TableHead>Cost</TableHead>
+											<TableHead>Rate</TableHead>
 											<TableHead className="text-center">Action</TableHead>
 										</TableRow>
 									</TableHeader>
@@ -502,7 +501,7 @@ export default function ContractorDashboard({ setActivePage }) {
 										) : (
 											paginatedData.map((p, i) => (
 												<TableRow key={i} className="hover:bg-gray-50 transition">
-													<TableCell>{p.title}</TableCell>
+													<TableCell>{p.projectUid} - {p.title}</TableCell>
 													<TableCell>{p.projectTypeName}</TableCell>
 													<TableCell>{p.client?.name}</TableCell>
 													<TableCell>₹ {p.totalCost || "-"}</TableCell>

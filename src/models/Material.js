@@ -5,15 +5,27 @@ import Contractor from "./Contractor.js";
 
 const Material = sequelize.define("Material", {
 	id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-	name: DataTypes.STRING,
-	quantity: DataTypes.FLOAT,
+
+	// contractor requirement fields
+	name: { type: DataTypes.STRING, allowNull: false },
+	quantity: { type: DataTypes.FLOAT, allowNull: false },
 	unit: { type: DataTypes.STRING, defaultValue: "pcs" },
-	cost: DataTypes.FLOAT,
+
+	// admin side fields
+	cost: { type: DataTypes.FLOAT, allowNull: true },
+	billImage: { type: DataTypes.STRING, allowNull: true },
+
 	status: {
-		type: DataTypes.ENUM("pending", "delivered", "used"),
-		defaultValue: "pending",
+		type: DataTypes.ENUM(
+			"requested",
+			"approved",
+			"rejected",
+			"delivered",
+			"used"
+		),
+		defaultValue: "requested",
 	},
-	billImage: DataTypes.STRING,
+
 	projectId: DataTypes.INTEGER,
 	contractorId: DataTypes.INTEGER,
 });

@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import Material from "@/models/Material";
 import Project from "@/models/Project";
-import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
-import { updateProjectMaterialTotal } from "@/lib/updateProjectMaterialTotal";
 import "@/lib/db";
 
 function getUser(req) {
@@ -16,47 +14,19 @@ function getUser(req) {
 	}
 }
 
-// ✅ GET MATERIALS
+// Contractor sees ONLY his materials
 export async function GET(req) {
 	const user = getUser(req);
-	if (!user) return NextResponse.json({ msg: "Unauthorized" }, { status: 401 });
+	if (!user)
+		return NextResponse.json({ msg: "Unauthorized" }, { status: 401 });
 
 	const materials = await Material.findAll({
 		where: { contractorId: user.id },
-		include: [{ model: Project, as: "project", attributes: ["id", "title"] }],
+		include: [
+			{ model: Project, as: "project", attributes: ["id", "title"] },
+		],
 		order: [["createdAt", "DESC"]],
 	});
 
 	return NextResponse.json({ success: true, data: materials });
-}
-
-// ✅ CREATE MATERIAL
-export async function POST(req) {
-	const user = getUser(req);
-	if (!user) return NextResponse.json({ msg: "Unauthorized" }, { status: 401 });
-
-	const fd = await req.formData();
-	const file = fd.get("billImage");
-	let billImage = null;
-
-	if (file && file.type.startsWith("image/")) {
-		const buffer = Buffer.from(await file.arrayBuffer());
-		billImage = await uploadToCloudinary(buffer);
-	}
-
-	const material = await Material.create({
-		name: fd.get("name"),
-		quantity: fd.get("quantity"),
-		unit: fd.get("unit"),
-		cost: fd.get("cost"),
-		status: fd.get("status"),
-		projectId: fd.get("projectId"),
-		contractorId: user.id,
-		billImage,
-	});
-
-	// ✅ Update total cost
-	await updateProjectMaterialTotal(fd.get("projectId"));
-
-	return NextResponse.json({ success: true, data: material });
 }

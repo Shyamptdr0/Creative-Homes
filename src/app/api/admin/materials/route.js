@@ -5,32 +5,31 @@ import Project from "@/models/Project";
 import Contractor from "@/models/Contractor";
 import "@/lib/db";
 
-export async function GET(req) {
+function getAdmin(req) {
+	const auth = req.headers.get("authorization");
+	if (!auth) return null;
+
 	try {
-		const authHeader = req.headers.get("authorization");
-		if (!authHeader)
-			return NextResponse.json({ msg: "No token" }, { status: 401 });
-
-		const token = authHeader.split(" ")[1];
-		const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-		// ✅ Only admin can access
-		if (decoded.role !== "admin")
-			return NextResponse.json({ msg: "Unauthorized" }, { status: 403 });
-
-		const materials = await Material.findAll({
-			include: [
-				{ model: Project, as: "project", attributes: ["id", "title"] },
-				{ model: Contractor, as: "contractor", attributes: ["id", "name"] }
-			],
-			order: [["createdAt", "DESC"]],
-		});
-
-		return NextResponse.json({ success: true, data: materials });
-	} catch (err) {
-		return NextResponse.json(
-			{ msg: "Server error", error: err.message },
-			{ status: 500 }
-		);
+		const decoded = jwt.verify(auth.split(" ")[1], process.env.JWT_SECRET);
+		if (decoded.role !== "admin") return null;
+		return decoded;
+	} catch {
+		return null;
 	}
+}
+
+export async function GET(req) {
+	const admin = getAdmin(req);
+	if (!admin)
+		return NextResponse.json({ msg: "Unauthorized" }, { status: 403 });
+
+	const materials = await Material.findAll({
+		include: [
+			{ model: Project, as: "project", attributes: ["id", "title"] },
+			{ model: Contractor, as: "contractor", attributes: ["id", "name"] }
+		],
+		order: [["createdAt", "DESC"]],
+	});
+
+	return NextResponse.json({ success: true, data: materials });
 }

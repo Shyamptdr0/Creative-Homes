@@ -1,28 +1,42 @@
-// Updated design for Admin Materials Page
 "use client";
+
 import { useEffect, useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, FileImage, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+	Table,
+	TableHeader,
+	TableRow,
+	TableHead,
+	TableBody,
+	TableCell,
+} from "@/components/ui/table";
+import { Loader2, X } from "lucide-react";
 
 export default function AdminMaterialsPage() {
 	const [materials, setMaterials] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [previewImage, setPreviewImage] = useState(null);
+	const [saving, setSaving] = useState(false);
+
+	const [editItem, setEditItem] = useState(null);
+	const [form, setForm] = useState({
+		status: "",
+		cost: "",
+		billImage: null,
+	});
+
+	const token =
+		typeof window !== "undefined"
+			? sessionStorage.getItem("token")
+			: null;
 
 	const fetchData = async () => {
-		try {
-			const token = sessionStorage.getItem("token");
-			const res = await fetch("/api/admin/materials", {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const data = await res.json();
-			const sorted = (data.data || []).sort(
-				(a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-			);
-			setMaterials(sorted);
-		} catch (err) {
-			console.log("Fetch Error:", err);
-		}
+		setLoading(true);
+		const res = await fetch("/api/admin/materials", {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		const data = await res.json();
+		setMaterials(data.data || []);
 		setLoading(false);
 	};
 
@@ -30,137 +44,249 @@ export default function AdminMaterialsPage() {
 		fetchData();
 	}, []);
 
-	// ✅ Group by project
+	// Group by project name
 	const materialsByProject = useMemo(() => {
 		const grouped = {};
 		for (const m of materials) {
-			const projectName = m.project?.title || "Unknown Project";
-			if (!grouped[projectName]) grouped[projectName] = [];
-			grouped[projectName].push(m);
+			const pname = m.project?.title || "Unknown Project";
+			if (!grouped[pname]) grouped[pname] = [];
+			grouped[pname].push(m);
 		}
 		return grouped;
 	}, [materials]);
 
-	const statusColors = {
-		pending: "bg-yellow-100 text-yellow-700 border-yellow-300",
-		approved: "bg-green-100 text-green-700 border-green-300",
-		rejected: "bg-red-100 text-red-700 border-red-300",
-		default: "bg-gray-100 text-gray-700 border-gray-300",
+	// Open item in edit modal
+	const openEdit = (item) => {
+		setEditItem(item);
+		setForm({
+			status: item.status,
+			cost: item.cost || "",
+			billImage: null,
+		});
 	};
 
-	const formatDate = (d) =>
-		new Date(d).toLocaleDateString("en-GB", {
-			day: "2-digit",
-			month: "short",
-			year: "numeric",
+	// Save changes
+	const saveUpdate = async () => {
+		if (!editItem) return;
+
+		setSaving(true);
+		const fd = new FormData();
+		fd.append("status", form.status);
+		fd.append("cost", form.cost);
+		if (form.billImage) fd.append("billImage", form.billImage);
+
+		await fetch(`/api/admin/materials/${editItem.id}`, {
+			method: "PUT",
+			headers: { Authorization: `Bearer ${token}` },
+			body: fd,
 		});
 
+		setSaving(false);
+		setEditItem(null);
+		fetchData();
+	};
+
+	const statusOptions = [
+		"requested",
+		"approved",
+		"rejected",
+		"delivered",
+		"used",
+	];
+
+	// Loading
 	if (loading)
 		return (
-			<div className="flex justify-center items-center h-[80vh]">
-				<Loader2 className="animate-spin h-10 w-10 text-primary" />
+			<div className="flex justify-center items-center h-[70vh]">
+				<Loader2 className="animate-spin h-10 w-10" />
 			</div>
 		);
 
 	return (
-		<div className="container mx-auto py-10">
-			<h1 className="text-3xl font-bold mb-10 text-gray-800">
-				📦 Materials by Project
-			</h1>
+		<div className="container mx-auto py-10 space-y-10">
+			<h1 className="text-3xl font-bold mb-4">Materials Management</h1>
 
-			{Object.keys(materialsByProject).map((projectName, i) => (
-				<div key={i} className="mb-14">
+			{/* Grouped by Project */}
+			{Object.keys(materialsByProject).map((projectName, idx) => {
+				const items = materialsByProject[projectName];
 
-					{/* ✅ PROJECT TITLE & TOTAL COST */}
-					<h2 className="text-xl font-semibold mb-4 text-slate-700 bg-slate-100 p-3 rounded border-l-4 border-slate-500 flex justify-between items-center">
-						<span>🏗️ {projectName}</span>
-						<span className="text-sm font-bold text-emerald-700">
-							Total Cost: ₹{" "}
-							{materialsByProject[projectName].reduce(
-								(sum, m) => sum + Number(m.cost || 0),
-								0
-							)}
-						</span>
-					</h2>
+				return (
+					<div key={idx} className="space-y-4 border rounded-md p-4 shadow-sm">
+						<div className="flex justify-between items-center bg-gray-100 p-3 rounded">
+							<h2 className="text-xl font-semibold">
+								🏗️ {projectName}
+							</h2>
 
-					<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{materialsByProject[projectName].map((m) => (
-							<Card
-								key={m.id}
-								className="shadow-md hover:shadow-lg transition rounded-xl border"
-							>
-								<CardHeader className="pb-2">
-									<CardTitle className="text-lg font-semibold">
-										{m.name}
-									</CardTitle>
-								</CardHeader>
+							<div className="text-sm font-bold text-green-700">
+								Total Cost: ₹
+								{items.reduce((s, m) => s + Number(m.cost || 0), 0)}
+							</div>
+						</div>
 
-								<CardContent className="space-y-2 text-sm">
-									<p><span className="font-medium">Quantity:</span> {m.quantity}</p>
-									<p><span className="font-medium">Unit:</span> {m.unit}</p>
-									<p className="text-xs text-gray-600">
-										Contractor: <b>{m.contractor?.name}</b>
-									</p>
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead>Material</TableHead>
+									<TableHead>Qty</TableHead>
+									<TableHead>Unit</TableHead>
+									<TableHead>Contractor</TableHead>
+									<TableHead>Status</TableHead>
+									<TableHead>Cost</TableHead>
+									<TableHead>Bill</TableHead>
+									<TableHead>Actions</TableHead>
+								</TableRow>
+							</TableHeader>
 
-									<span
-										className={`text-xs font-medium px-2 py-1 rounded border w-fit inline-block ${
-											statusColors[m.status] || statusColors.default
-										}`}
-									>
-										{m.status.toUpperCase()}
-									</span>
+							<TableBody>
+								{items.map((m) => (
+									<TableRow key={m.id}>
+										<TableCell>{m.name}</TableCell>
+										<TableCell>{m.quantity}</TableCell>
+										<TableCell>{m.unit}</TableCell>
+										<TableCell>{m.contractor?.name}</TableCell>
 
-									<p className="font-bold text-emerald-700 text-sm">₹ {m.cost}</p>
+										<TableCell className="capitalize">{m.status}</TableCell>
 
-									<p className="text-xs text-gray-400">
-										📅 {formatDate(m.createdAt)}
-									</p>
+										<TableCell>
+											{m.cost ? `₹${m.cost}` : "-"}
+										</TableCell>
 
-									{m.billImage ? (
-										<img
-											src={m.billImage}
-											className="mt-2 w-full h-40 object-cover rounded-lg border cursor-pointer hover:opacity-90 transition"
-											alt="Bill"
-											onClick={() => setPreviewImage(m.billImage)}
-										/>
-									) : (
-										<div className="mt-2 w-full h-40 bg-gray-100 flex items-center justify-center rounded-lg border text-gray-400 text-xs">
-											<FileImage className="w-5 h-5 mr-1" /> No Bill
-										</div>
-									)}
-								</CardContent>
-							</Card>
-						))}
+										{/* Bill Image */}
+										<TableCell>
+											{m.billImage ? (
+												<Button
+													size="sm"
+													variant="secondary"
+													onClick={() => setPreviewImage(m.billImage)}
+												>
+													View
+												</Button>
+											) : (
+												"-"
+											)}
+										</TableCell>
+
+										<TableCell>
+											<Button
+												size="sm"
+												onClick={() => openEdit(m)}
+											>
+												Update
+											</Button>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
 					</div>
-				</div>
-			))}
+				);
+			})}
 
-			{/* ✅ BEAUTIFUL PREVIEW MODAL */}
+			{/* Fullscreen Image Preview */}
 			{previewImage && (
 				<div
-					className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
+					className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
 					onClick={() => setPreviewImage(null)}
 				>
 					<div
-						className="relative bg-white p-3 rounded-xl shadow-2xl w-auto animate-scaleIn"
+						className="relative bg-white p-3 rounded-xl shadow-xl"
 						onClick={(e) => e.stopPropagation()}
 					>
 						<button
 							onClick={() => setPreviewImage(null)}
-							className="absolute -top-3 -right-3 bg-white text-black p-2 rounded-full shadow-md hover:bg-gray-200 transition"
-							title="Close"
+							className="absolute -top-3 -right-3 bg-white p-1 rounded-full shadow"
 						>
 							<X className="w-5 h-5" />
 						</button>
 
-						<img
-							src={previewImage}
-							className="w-full max-h-[80vh] object-contain rounded-lg"
-							alt="Full Bill"
-						/>
+						<img src={previewImage} className="max-h-[80vh]" />
 					</div>
 				</div>
 			)}
+
+			{/* EDIT MODAL */}
+			{/* EDIT MODAL */}
+			{editItem && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+
+					{/* MODAL BOX */}
+					<div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-6 relative">
+
+						<h2 className="text-xl font-bold text-center">Update Material</h2>
+
+						{/* FORM CONTENT */}
+						<div className="space-y-4">
+
+							{/* Status */}
+							<div className="space-y-1">
+								<label className="font-medium">Status</label>
+								<select
+									className="border p-2 rounded w-full"
+									value={form.status}
+									onChange={(e) =>
+										setForm({ ...form, status: e.target.value })
+									}
+								>
+									{statusOptions.map((s) => (
+										<option key={s} value={s}>
+											{s.toUpperCase()}
+										</option>
+									))}
+								</select>
+							</div>
+
+							{/* Cost */}
+							<div className="space-y-1">
+								<label className="font-medium">Cost</label>
+								<input
+									type="number"
+									className="border p-2 rounded w-full"
+									value={form.cost}
+									onChange={(e) =>
+										setForm({ ...form, cost: e.target.value })
+									}
+								/>
+							</div>
+
+							{/* Bill Image */}
+							<div className="space-y-1">
+								<label className="font-medium">Bill Image</label>
+								<input
+									type="file"
+									accept="image/*"
+									onChange={(e) =>
+										setForm({ ...form, billImage: e.target.files[0] })
+									}
+									className="border p-2 rounded w-full"
+								/>
+							</div>
+						</div>
+
+						{/* BUTTONS (fix max width issue) */}
+						<div className="flex flex-wrap gap-2">
+							<Button
+								className="w-full"
+								onClick={saveUpdate}
+								disabled={saving}
+							>
+								{saving ? "Updating..." : "Save"}
+							</Button>
+
+							<Button
+
+								variant="secondary"
+								className="w-full border-2 border-gray-300 shadow-md"
+								onClick={() => setEditItem(null)}
+							>
+								Cancel
+							</Button>
+						</div>
+
+					</div>
+				</div>
+			)}
+
+
 		</div>
 	);
 }
