@@ -35,6 +35,12 @@ import {
 	ListOrdered,
 } from "lucide-react";
 
+/**
+ * PaymentPage
+ * - Save All Stages button is active only when totalPercentUsed === 100
+ * - Loading states added for: saveAllStages, saveStage (add/update), deleteStage, saveProjectAmountToDB
+ */
+
 export default function PaymentPage() {
 	// ---------------------- STATE ----------------------
 	const [projects, setProjects] = useState([]);
@@ -75,6 +81,12 @@ export default function PaymentPage() {
 
 	const [paymentFilter, setPaymentFilter] = useState("all");
 
+	// -------- Loading/Action states ----------
+	const [savingStages, setSavingStages] = useState(false); // saveAllStages
+	const [stageSaving, setStageSaving] = useState(false); // add/update stage
+	const [deletingStageId, setDeletingStageId] = useState(null); // id being deleted
+	const [savingProjectAmount, setSavingProjectAmount] = useState(false);
+
 	// ---------------------- LOAD DATA ----------------------
 	useEffect(() => {
 		loadProjects();
@@ -99,28 +111,40 @@ export default function PaymentPage() {
 		}
 	}, [payments]);
 
-
 	// ---------------------- FETCH PROJECTS ----------------------
 	const loadProjects = async () => {
 		setLoadingProjects(true);
 
-		const res = await fetch("/api/projects");
-		const data = await res.json();
+		try {
+			const res = await fetch("/api/projects");
+			const data = await res.json();
 
-		setProjects(data.projects || []);
-		setLoadingProjects(false);
+			setProjects(data.projects || []);
+		} catch (err) {
+			console.error("Error loading projects", err);
+			toast.error("Error loading projects");
+		} finally {
+			setLoadingProjects(false);
+		}
 	};
 
 	// ---------------------- FETCH STAGES ----------------------
 	const loadStages = async (projectId) => {
+		if (!projectId) return;
 		setLoadingStages(true);
 
-		const res = await fetch(`/api/paymentStage/list/${projectId}`);
-		const data = await res.json();
+		try {
+			const res = await fetch(`/api/paymentStage/list/${projectId}`);
+			const data = await res.json();
 
-		if (data.success) setStages(data.stages);
-
-		setLoadingStages(false);
+			if (data.success) setStages(data.stages || []);
+			else setStages([]);
+		} catch (err) {
+			console.error("Error loading stages", err);
+			toast.error("Error loading stages");
+		} finally {
+			setLoadingStages(false);
+		}
 	};
 
 	// ---------------------- FETCH PAYMENTS ----------------------
@@ -129,29 +153,42 @@ export default function PaymentPage() {
 
 		setLoadingPayments(true);
 
-		const res = await fetch(`/api/payment?projectId=${projectId}`);
-		const data = await res.json();
+		try {
+			const res = await fetch(`/api/payment?projectId=${projectId}`);
+			const data = await res.json();
 
-		setPayments(data.payments || []);
-
-		setLoadingPayments(false);
+			setPayments(data.payments || []);
+		} catch (err) {
+			console.error("Error loading payments", err);
+			toast.error("Error loading payments");
+		} finally {
+			setLoadingPayments(false);
+		}
 	};
 
 	// ---------------------- SAVE PROJECT AMOUNT ----------------------
 	const saveProjectAmountToDB = async () => {
 		if (!totalAmount) return toast.error("Enter project amount");
 
-		await fetch("/api/projects/updateAmount", {
-			method: "PUT",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				projectId: selectedProject.id,
-				totalAmount,
-			}),
-		});
+		setSavingProjectAmount(true);
+		try {
+			await fetch("/api/projects/updateAmount", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					projectId: selectedProject.id,
+					totalAmount,
+				}),
+			});
 
-		toast.success("Project amount saved");
-		setTotalAmountLocked(true);
+			toast.success("Project amount saved");
+			setTotalAmountLocked(true);
+		} catch (err) {
+			console.error("Error saving project amount", err);
+			toast.error("Error saving project amount");
+		} finally {
+			setSavingProjectAmount(false);
+		}
 	};
 
 	// ---------------------- STAGE ACTIONS ----------------------
@@ -170,7 +207,14 @@ export default function PaymentPage() {
 
 	const openEditStage = (stage) => {
 		setEditingStage(stage);
-		setStageForm(stage);
+		setStageForm({
+			id: stage.id,
+			stageOrder: stage.stageOrder,
+			stageName: stage.stageName,
+			percentage: stage.percentage,
+			amount: stage.amount,
+			remarks: stage.remarks || "",
+		});
 		setStageOpen(true);
 	};
 
@@ -178,7 +222,8 @@ export default function PaymentPage() {
 		const updated = { ...stageForm, [key]: value };
 
 		if (key === "percentage" && totalAmount) {
-			updated.amount = (Number(totalAmount) * Number(value)) / 100;
+			const pct = Number(value) || 0;
+			updated.amount = (Number(totalAmount) * pct) / 100;
 		}
 
 		setStageForm(updated);
@@ -188,43 +233,69 @@ export default function PaymentPage() {
 		if (!stageForm.stageName || !stageForm.percentage)
 			return toast.error("Enter all stage details");
 
-		if (editingStage) {
-			await fetch("/api/paymentStage/update", {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(stageForm),
-			});
-		} else {
-			await fetch("/api/paymentStage/create", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					projectId: selectedProject.id,
-					stageOrder: stageForm.stageOrder,
-					stageName: stageForm.stageName,
-					percentage: stageForm.percentage,
-					amount: stageForm.amount,
-					remarks: stageForm.remarks,
-				}),
-			});
-		}
+		setStageSaving(true);
+		try {
+			if (editingStage) {
+				await fetch("/api/paymentStage/update", {
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(stageForm),
+				});
+			} else {
+				await fetch("/api/paymentStage/create", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						projectId: selectedProject.id,
+						stageOrder: stageForm.stageOrder,
+						stageName: stageForm.stageName,
+						percentage: stageForm.percentage,
+						amount: stageForm.amount,
+						remarks: stageForm.remarks,
+					}),
+				});
+			}
 
-		toast.success("Stage saved");
-		setStageOpen(false);
-		loadStages(selectedProject.id);
+			toast.success("Stage saved");
+			setStageOpen(false);
+			await loadStages(selectedProject.id);
+		} catch (err) {
+			console.error("Error saving stage", err);
+			toast.error("Error saving stage");
+		} finally {
+			setStageSaving(false);
+		}
 	};
 
 	const deleteStage = async (id) => {
-		await fetch(`/api/paymentStage/delete/${id}`, {
-			method: "DELETE",
-		});
+		const ok = confirm("Are you sure you want to delete this stage?");
+		if (!ok) return;
 
-		toast.success("Stage deleted");
-		loadStages(selectedProject.id);
+		setDeletingStageId(id);
+		try {
+			await fetch(`/api/paymentStage/delete/${id}`, {
+				method: "DELETE",
+			});
+
+			toast.success("Stage deleted");
+			await loadStages(selectedProject.id);
+		} catch (err) {
+			console.error("Error deleting stage", err);
+			toast.error("Error deleting stage");
+		} finally {
+			setDeletingStageId(null);
+		}
 	};
 
 	// ---------------------- SAVE ALL STAGES ----------------------
 	const saveAllStages = async () => {
+		// Only allow if totalPercentUsed === 100 (UI should already enforce, but safety check)
+		if (totalPercentUsed !== 100) {
+			return toast.error("Total stages percentage must equal 100%");
+		}
+
+		setSavingStages(true);
+
 		try {
 			for (const s of stages) {
 				await fetch("/api/paymentStage/update", {
@@ -249,28 +320,34 @@ export default function PaymentPage() {
 
 			toast.success("All stages & payments saved");
 
-			loadStages(selectedProject.id);
-			loadPayments(selectedProject.id);
+			await loadStages(selectedProject.id);
+			await loadPayments(selectedProject.id);
 
 			setShowStages(false);
-
 		} catch (err) {
-			console.log("Save error:", err);
+			console.error("Save error:", err);
 			toast.error("Error saving stages");
+		} finally {
+			setSavingStages(false);
 		}
 	};
 
 	// ---------------------- INSTALLMENTS ----------------------
 	const loadInstallments = async (paymentId) => {
-		const res = await fetch(`/api/payment/installments/list/${paymentId}`);
-		const data = await res.json();
+		try {
+			const res = await fetch(`/api/payment/installments/list/${paymentId}`);
+			const data = await res.json();
 
-		if (!data.success) return toast.error(data.error);
+			if (!data.success) return toast.error(data.error);
 
-		setInstallments((prev) => ({
-			...prev,
-			[paymentId]: data.installments,
-		}));
+			setInstallments((prev) => ({
+				...prev,
+				[paymentId]: data.installments,
+			}));
+		} catch (err) {
+			console.error("Error loading installments", err);
+			toast.error("Error loading installments");
+		}
 	};
 
 	const generateInstallments = async () => {
@@ -329,7 +406,6 @@ export default function PaymentPage() {
 		return next ? next.dueDate : "Completed";
 	};
 
-
 	const paidAmount = (payment) => {
 		const inst = installments[payment.id];
 		if (!inst || inst.length === 0) return 0;
@@ -348,7 +424,6 @@ export default function PaymentPage() {
 		return "Partial";
 	};
 
-
 	const totalPercentUsed = stages.reduce(
 		(sum, s) => sum + Number(s.percentage || 0),
 		0
@@ -360,6 +435,36 @@ export default function PaymentPage() {
 	);
 
 	const remainingProjectAmount = Number(totalAmount || 0) - amountUsed;
+
+	// ---------------------- Helper small spinner ----------------------
+	const SmallSpinner = ({ className = "inline-block w-4 h-4 mr-2 align-middle" }) => (
+		<svg
+			className={className}
+			viewBox="0 0 50 50"
+			xmlns="http://www.w3.org/2000/svg"
+			aria-hidden="true"
+		>
+			<circle
+				cx="25"
+				cy="25"
+				r="20"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="5"
+				strokeLinecap="round"
+				strokeDasharray="31.415, 31.415"
+			>
+				<animateTransform
+					attributeName="transform"
+					type="rotate"
+					from="0 25 25"
+					to="360 25 25"
+					dur="0.9s"
+					repeatCount="indefinite"
+				/>
+			</circle>
+		</svg>
+	);
 
 	// ---------------------- RENDER ----------------------
 	return (
@@ -416,7 +521,16 @@ export default function PaymentPage() {
 								/>
 
 								{!totalAmountLocked ? (
-									<Button onClick={saveProjectAmountToDB}>Save</Button>
+									<Button onClick={saveProjectAmountToDB} disabled={savingProjectAmount}>
+										{savingProjectAmount ? (
+											<>
+												<SmallSpinner className="inline-block w-4 h-4 mr-2" />
+												Saving...
+											</>
+										) : (
+											"Save"
+										)}
+									</Button>
 								) : (
 									<Button
 										variant="outline"
@@ -484,6 +598,7 @@ export default function PaymentPage() {
 																size="sm"
 																variant="outline"
 																onClick={() => openEditStage(s)}
+																disabled={stageSaving || savingStages}
 															>
 																<Pencil size={16} />
 															</Button>
@@ -492,8 +607,16 @@ export default function PaymentPage() {
 																size="sm"
 																variant="destructive"
 																onClick={() => deleteStage(s.id)}
+																disabled={deletingStageId === s.id || savingStages}
 															>
-																<Trash2 size={16} />
+																{deletingStageId === s.id ? (
+																	<>
+																		<SmallSpinner className="inline-block w-3 h-3 mr-1" />
+																		Deleting...
+																	</>
+																) : (
+																	<Trash2 size={16} />
+																)}
 															</Button>
 														</div>
 													</td>
@@ -513,8 +636,22 @@ export default function PaymentPage() {
 										<p><b>Total Amount Used:</b> ₹{amountUsed}</p>
 										<p><b>Remaining:</b> ₹{remainingProjectAmount}</p>
 
-										<Button className="mt-3 w-full" onClick={saveAllStages}>
-											Save All Stages
+										{/* Save All Stages button: active only when totalPercentUsed === 100 */}
+										<Button
+											className="mt-3 w-full"
+											onClick={saveAllStages}
+											disabled={totalPercentUsed !== 100 || savingStages}
+										>
+											{savingStages ? (
+												<>
+													<SmallSpinner className="inline-block w-4 h-4 mr-2" />
+													Saving...
+												</>
+											) : totalPercentUsed !== 100 ? (
+												`Save All Stages (requires 100% — current ${totalPercentUsed}%)`
+											) : (
+												"Save All Stages"
+											)}
 										</Button>
 									</div>
 								)}
@@ -524,7 +661,6 @@ export default function PaymentPage() {
 				</Card>
 			)}
 
-			{/* Payments */}
 			{/* Payments */}
 			{selectedProject && (
 				<>
@@ -791,8 +927,13 @@ export default function PaymentPage() {
 							/>
 						</div>
 
-						<Button className="w-full h-10 mt-4" onClick={saveStage}>
-							{editingStage ? "Update Stage" : "Save Stage"}
+						<Button className="w-full h-10 mt-4" onClick={saveStage} disabled={stageSaving}>
+							{stageSaving ? (
+								<>
+									<SmallSpinner className="inline-block w-4 h-4 mr-2" />
+									Saving...
+								</>
+							) : editingStage ? "Update Stage" : "Save Stage"}
 						</Button>
 					</div>
 				</SheetContent>
@@ -885,9 +1026,7 @@ export default function PaymentPage() {
 												return (
 													<tr
 														key={inst.id}
-														className={`border-b ${
-															isOverdue ? "bg-red-100" : ""
-														}`}
+														className={`border-b ${isOverdue ? "bg-red-100" : ""}`}
 													>
 														<td className="p-2">{inst.installmentNo}</td>
 														<td className="p-2">₹{inst.amount}</td>

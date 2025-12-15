@@ -1,4 +1,4 @@
-﻿// âœ… /app/api/queries/route.js
+// ✅ /app/api/queries/route.js
 
 import { NextResponse } from "next/server";
 import Query from "@/models/Query";
@@ -39,27 +39,13 @@ export async function GET(req) {
 		if (decoded.role === "admin") {
 			// No where clause - admin sees all queries
 		}
-		// Client sees queries from their projects
+		// Client sees only their queries
 		else if (decoded.role === "client") {
-			// Client should see all queries related to their projects
-			// including queries from contractors on the same projects
-			const clientProjects = await Project.findAll({
-				where: { clientId: decoded.id },
-				attributes: ["id"]
-			});
-			const projectIds = clientProjects.map(p => p.id);
-			where.projectId = { [Op.in]: projectIds };
+			where.clientId = decoded.id;
 		}
-		// Contractor sees queries from their projects
+		// Contractor sees only their queries
 		else if (decoded.role === "contractor") {
-			// Contractor should see all queries related to their projects
-			// including queries from clients on the same projects
-			const contractorProjects = await Project.findAll({
-				where: { contractorId: decoded.id },
-				attributes: ["id"]
-			});
-			const projectIds = contractorProjects.map(p => p.id);
-			where.projectId = { [Op.in]: projectIds };
+			where.contractorId = decoded.id;
 		}
 		else {
 			return NextResponse.json(
@@ -102,7 +88,7 @@ export async function GET(req) {
 }
 
 /* ============================================================
-   ðŸ†• POST â€” Creates a Query with optional Image Upload
+   🆕 POST — Creates a Query with optional Image Upload
 ============================================================ */
 export async function POST(req) {
 	try {
@@ -112,13 +98,12 @@ export async function POST(req) {
 		const projectId = formData.get("projectId");
 		const contractorId = formData.get("contractorId");
 		const clientId = formData.get("clientId"); // still supported
-		const adminId = formData.get("adminId"); // admin support added
 
 		const image = formData.get("image");
 
 		let imageUrl = null;
 
-		// ðŸ†• If file uploaded â†’ convert to buffer -> upload to Cloudinary
+		// 🆕 If file uploaded → convert to buffer -> upload to Cloudinary
 		if (image && image.name) {
 			const arrayBuffer = await image.arrayBuffer();
 			const buffer = Buffer.from(arrayBuffer);
@@ -126,13 +111,12 @@ export async function POST(req) {
 			imageUrl = await uploadToCloudinary(buffer, "queries");
 		}
 
-		// ðŸ†• Create query with imageUrl included
+		// 🆕 Create query with imageUrl included
 		const query = await Query.create({
 			message,
 			projectId,
 			contractorId,
 			clientId,
-			adminId,
 			imageUrl,
 		});
 
@@ -149,4 +133,3 @@ export async function POST(req) {
 		);
 	}
 }
-

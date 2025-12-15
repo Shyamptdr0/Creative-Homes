@@ -13,7 +13,7 @@ const Query = sequelize.define("Query", {
 	reply: { type: DataTypes.TEXT },
 
 	status: {
-		type: DataTypes.ENUM("open", "resolved"),
+		type: DataTypes.ENUM("open", "in-progress", "resolved"),
 		defaultValue: "open",
 	},
 

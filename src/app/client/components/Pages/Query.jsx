@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Send, Paperclip, X, CheckCircle, Clock, MessageCircle, ChevronLeft, Search, Plus } from "lucide-react";
 import { toast } from "sonner";
 
-export default function ContractorQueriesPage() {
+export default function ClientQueriesPage() {
 	const [projects, setProjects] = useState([]);
 	const [queries, setQueries] = useState([]);
 	const [selectedProject, setSelectedProject] = useState(null);
@@ -53,19 +53,19 @@ export default function ContractorQueriesPage() {
 		}
 	};
 	
-	let contractorId = null;
+	let clientId = null;
 	if (token) {
 		try {
 			const decoded = JSON.parse(atob(token.split(".")[1]));
-			contractorId = decoded.id;
+			clientId = decoded.id;
 		} catch (err) {
-			console.error("CONTRACTOR QUERY - TOKEN DECODE ERROR:", err);
+			console.error("CLIENT QUERY - TOKEN DECODE ERROR:", err);
 		}
 	}
 
 	const fetchProjects = async () => {
 		try {
-			const res = await fetch("/api/contractors/projects", {
+			const res = await fetch("/api/clients/projects", {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			const data = await res.json();
@@ -73,13 +73,13 @@ export default function ContractorQueriesPage() {
 				setProjects(data.projects);
 			}
 		} catch (error) {
-			console.error("CONTRACTOR QUERY - PROJECT FETCH ERROR:", error);
+			console.error("CLIENT QUERY - PROJECT FETCH ERROR:", error);
 		}
 	};
 
 	const fetchQueries = async () => {
 		try {
-			const res = await fetch("/api/contractors/queries", {
+			const res = await fetch("/api/clients/queries", {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			let data = await res.json();
@@ -99,7 +99,7 @@ export default function ContractorQueriesPage() {
 			});
 			setIssuesByProject(grouped);
 		} catch (error) {
-			console.error("CONTRACTOR QUERY - QUERY FETCH ERROR:", error);
+			console.error("CLIENT QUERY - QUERY FETCH ERROR:", error);
 			setQueries([]);
 		}
 	};
@@ -111,7 +111,7 @@ export default function ContractorQueriesPage() {
 		setSaving(true);
 		const formData = new FormData();
 		formData.append("projectId", newIssueProject);
-		formData.append("contractorId", contractorId);
+		formData.append("clientId", clientId);
 		formData.append("message", newIssueMessage);
 		if (newIssueImage) {
 			formData.append("image", newIssueImage);
@@ -153,10 +153,10 @@ export default function ContractorQueriesPage() {
 		setSaving(true);
 		const formData = new FormData();
 		formData.append("projectId", projects.find(p => p.title === selectedProject)?.id);
-		formData.append("contractorId", contractorId);
+		formData.append("clientId", clientId);
 		formData.append("message", newMessage);
-		formData.append("senderType", "contractor");
-		formData.append("senderId", contractorId);
+		formData.append("senderType", "client");
+		formData.append("senderId", clientId);
 		if (chatImage) {
 			formData.append("image", chatImage);
 		}
@@ -185,7 +185,7 @@ export default function ContractorQueriesPage() {
 	};
 
 	const loadProjectMessages = (project) => {
-		// Load all messages for selected project
+		// Load all messages for the selected project
 		const projectQueries = queries.filter(query => query.Project?.title === project);
 		const messages = [];
 		
@@ -198,7 +198,7 @@ export default function ContractorQueriesPage() {
 					message: query.message,
 					image: query.image,
 					senderType: "client",
-					senderName: `Client: ${query.Client?.name || "Unknown"}`,
+					senderName: "You",
 					createdAt: query.createdAt,
 					status: query.status
 				});
@@ -209,7 +209,7 @@ export default function ContractorQueriesPage() {
 					message: query.message,
 					image: query.image,
 					senderType: "contractor",
-					senderName: "You",
+					senderName: `Contractor: ${query.Contractor?.name || "Unknown"}`,
 					createdAt: query.createdAt,
 					status: query.status
 				});
@@ -252,7 +252,7 @@ export default function ContractorQueriesPage() {
 	};
 
 	useEffect(() => {
-		if (token && contractorId) {
+		if (token && clientId) {
 			setLoading(true);
 			Promise.all([fetchProjects(), fetchQueries()]).then(() => {
 				if (projects.length > 0 && !selectedProject) {
@@ -265,7 +265,7 @@ export default function ContractorQueriesPage() {
 				setLoading(false);
 			});
 		}
-	}, [token, contractorId]);
+	}, [token, clientId]);
 
 	// Real-time polling for messages and queries
 	useEffect(() => {
@@ -277,7 +277,7 @@ export default function ContractorQueriesPage() {
 		}, 3000); // Poll every 3 seconds
 
 		return () => clearInterval(interval);
-	}, [selectedProject, token, contractorId]);
+	}, [selectedProject, token, clientId]);
 
 	const filteredIssues = Object.entries(issuesByProject).reduce((acc, [project, issues]) => {
 		const filtered = issues.filter(issue => 
@@ -386,6 +386,7 @@ export default function ContractorQueriesPage() {
 										</Badge>
 									</div>
 								</div>
+								{/* Show only the most recent issue */}
 								{issues.length > 0 && (
 									<div className="text-sm text-gray-600 mt-1 line-clamp-2">
 										{issues[0].message}
@@ -434,11 +435,11 @@ export default function ContractorQueriesPage() {
 								<div
 									key={msg.id}
 									className={`mb-4 flex ${
-										msg.senderType === "contractor" ? "justify-end" : "justify-start"
+										msg.senderType === "client" ? "justify-end" : "justify-start"
 									}`}
 								>
 									<div className={`max-w-xs lg:max-w-md ${
-										msg.senderType === "contractor" 
+										msg.senderType === "client" 
 											? "bg-blue-500 text-white" 
 											: "bg-white border"
 									} rounded-lg p-3 shadow`}>
@@ -456,7 +457,7 @@ export default function ContractorQueriesPage() {
 											</div>
 										)}
 										<p className={`text-xs mt-1 ${
-											msg.senderType === "contractor" ? "text-blue-100" : "text-gray-500"
+											msg.senderType === "client" ? "text-blue-100" : "text-gray-500"
 										}`}>
 											{formatMessageTime(msg.createdAt)}
 										</p>

@@ -49,3 +49,29 @@ export async function DELETE(req, context) {
 		return NextResponse.json({ error: err.message }, { status: 500 });
 	}
 }
+
+export async function PATCH(req, context) {
+	try {
+		const { id } = await context.params;
+		const body = await req.json();
+
+		const query = await Query.findByPk(id);
+		if (!query) {
+			return NextResponse.json({ error: 'Query not found' }, { status: 404 });
+		}
+
+		// Handle resolution specifically
+		if (body.status === 'resolved') {
+			await query.update({ 
+				status: 'resolved', 
+				resolvedBy: body.resolvedBy 
+			});
+		} else {
+			await query.update(body);
+		}
+
+		return NextResponse.json({ success: true, query });
+	} catch (err) {
+		return NextResponse.json({ error: err.message }, { status: 500 });
+	}
+}

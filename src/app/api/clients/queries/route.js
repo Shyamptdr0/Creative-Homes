@@ -1,4 +1,4 @@
-// ✅ /app/api/contractors/queries/route.js
+// ✅ /app/api/client/queries/route.js
 
 import { NextResponse } from "next/server";
 import Query from "@/models/Query";
@@ -31,22 +31,22 @@ export async function GET(req) {
 			);
 		}
 
-		// Only contractors allowed
-		if (decoded.role !== "contractor") {
+		// Only client allowed
+		if (decoded.role !== "client") {
 			return NextResponse.json(
 				{ success: false, message: "Access denied" },
 				{ status: 403 }
 			);
 		}
 
-		const contractorId = decoded.id;
+		const clientId = decoded.id;
 
-		// Fetch all queries from contractor's projects (including client queries)
-		const contractorProjects = await Project.findAll({
-			where: { contractorId },
+		// Fetch all queries from client's projects (including contractor queries)
+		const clientProjects = await Project.findAll({
+			where: { clientId },
 			attributes: ["id"]
 		});
-		const projectIds = contractorProjects.map(p => p.id);
+		const projectIds = clientProjects.map(p => p.id);
 
 		const queries = await Query.findAll({
 			where: { projectId: { [Op.in]: projectIds } },
@@ -70,7 +70,7 @@ export async function GET(req) {
 		});
 
 	} catch (error) {
-		console.error("CONTRACTOR QUERY API ERROR =>", error);
+		console.error("CLIENT QUERY API ERROR =>", error);
 		return NextResponse.json(
 			{ success: false, message: error.message },
 			{ status: 500 }

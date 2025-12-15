@@ -7,6 +7,7 @@ import ProjectPage from "@/app/contractor/components/Pages/Project";
 import MaterialPage from "@/app/contractor/components/Pages/Material";
 import ContractorQueriesPage from "@/app/contractor/components/Pages/Query";
 import DrawingPage from "@/app/contractor/components/Pages/Drawing";
+import PaymentsPage from "@/app/contractor/components/Pages/Payments";
 
 export default function AllPages({activePage, setActivePage}) {
 	switch (activePage) {
@@ -16,6 +17,8 @@ export default function AllPages({activePage, setActivePage}) {
 			return <ProjectPage/>;
 		case "Drawing":
 			return <DrawingPage/>;
+		case "Payment":
+			return <PaymentsPage/>;
 		case "Stage":
 			return <ContractorStagesPage/>;
 		case "Material":

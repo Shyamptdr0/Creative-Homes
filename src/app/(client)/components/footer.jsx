@@ -31,8 +31,8 @@ export default function FooterPage() {
 				{/* Contact Info */}
 				<div>
 					<h3 className="text-xl font-semibold mb-4">Contact Us</h3>
-					<p className="text-gray-400"> 240, Russell Street, QT Melbourne</p>
-					<p className="text-gray-400">Victoria,Melbourne</p>
+					<p className="text-gray-400">240, Russell Street, QT Melbourne</p>
+					<p className="text-gray-400">Victoria, Melbourne</p>
 					<p className="text-gray-400">Email: info@creativehomes.com</p>
 					<p className="text-gray-400">Phone: +91 12345 67890</p>
 				</div>
@@ -51,7 +51,16 @@ export default function FooterPage() {
 			</div>
 
 			<div className="border-t border-gray-700 mt-12 pt-6 text-center text-gray-500 text-sm">
-				&copy; {new Date().getFullYear()} Creative Homes. All rights reserved.
+				&copy; {new Date().getFullYear()} Creative Homes. All rights reserved. |{" "}
+				Designed and Developed by{" "}
+				<a
+					href="https://shreemsoftwaresolutions.com/"
+					target="_blank"
+					rel="noopener noreferrer"
+					className="text-lime-500 hover:text-lime-400 transition-colors font-semibold"
+				>
+					Shreem Software Solutions
+				</a>
 			</div>
 		</footer>
 	);

@@ -465,14 +465,6 @@ export default function AdminDashboard({setActivePage}) {
 		{/* HEADER */}
 		<div className="flex justify-between items-center mb-8">
 			<h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
-
-			<div onClick={() => setActivePage("Query")} className="relative cursor-pointer">
-				<Bell className="h-7 w-7 text-gray-700"/>
-				{newQueries > 0 && (<span
-					className="absolute -top-2 -right-2 bg-red-600 text-white text-xs px-2 rounded-full animate-pulse">
-							{newQueries}
-						</span>)}
-			</div>
 		</div>
 
 		{/* CARDS */}

@@ -9,10 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Send, Paperclip, X, CheckCircle, Clock, MessageCircle, ChevronLeft, Search, Plus } from "lucide-react";
 import { toast } from "sonner";
 
-export default function ContractorQueriesPage() {
+export default function ClientQueriesPage() {
 	const [projects, setProjects] = useState([]);
 	const [queries, setQueries] = useState([]);
-	const [selectedProject, setSelectedProject] = useState(null);
+	const [selectedIssue, setSelectedIssue] = useState(null);
 	const [chatMessages, setChatMessages] = useState([]);
 	const [newMessage, setNewMessage] = useState("");
 	const [chatImage, setChatImage] = useState(null);
@@ -28,44 +28,19 @@ export default function ContractorQueriesPage() {
 	const chatEndRef = useRef(null);
 	const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
 	
-	// WhatsApp-style time formatting
-	const formatMessageTime = (dateString) => {
-		const date = new Date(dateString);
-		const now = new Date();
-		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-		const yesterday = new Date(today);
-		yesterday.setDate(yesterday.getDate() - 1);
-		
-		const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-		
-		if (messageDate.getTime() === today.getTime()) {
-			// Today - show time only
-			return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-		} else if (messageDate.getTime() === yesterday.getTime()) {
-			// Yesterday
-			return 'Yesterday';
-		} else if (messageDate.getFullYear() === now.getFullYear()) {
-			// This year - show month and day
-			return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-		} else {
-			// Other years - show full date
-			return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-		}
-	};
-	
-	let contractorId = null;
+	let clientId = null;
 	if (token) {
 		try {
 			const decoded = JSON.parse(atob(token.split(".")[1]));
-			contractorId = decoded.id;
+			clientId = decoded.id;
 		} catch (err) {
-			console.error("CONTRACTOR QUERY - TOKEN DECODE ERROR:", err);
+			console.error("CLIENT QUERY - TOKEN DECODE ERROR:", err);
 		}
 	}
 
 	const fetchProjects = async () => {
 		try {
-			const res = await fetch("/api/contractors/projects", {
+			const res = await fetch("/api/clients/projects", {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			const data = await res.json();
@@ -73,13 +48,13 @@ export default function ContractorQueriesPage() {
 				setProjects(data.projects);
 			}
 		} catch (error) {
-			console.error("CONTRACTOR QUERY - PROJECT FETCH ERROR:", error);
+			console.error("CLIENT QUERY - PROJECT FETCH ERROR:", error);
 		}
 	};
 
 	const fetchQueries = async () => {
 		try {
-			const res = await fetch("/api/contractors/queries", {
+			const res = await fetch("/api/clients/queries", {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			let data = await res.json();
@@ -99,7 +74,7 @@ export default function ContractorQueriesPage() {
 			});
 			setIssuesByProject(grouped);
 		} catch (error) {
-			console.error("CONTRACTOR QUERY - QUERY FETCH ERROR:", error);
+			console.error("CLIENT QUERY - QUERY FETCH ERROR:", error);
 			setQueries([]);
 		}
 	};
@@ -111,7 +86,7 @@ export default function ContractorQueriesPage() {
 		setSaving(true);
 		const formData = new FormData();
 		formData.append("projectId", newIssueProject);
-		formData.append("contractorId", contractorId);
+		formData.append("clientId", clientId);
 		formData.append("message", newIssueMessage);
 		if (newIssueImage) {
 			formData.append("image", newIssueImage);
@@ -129,13 +104,7 @@ export default function ContractorQueriesPage() {
 				setNewIssueMessage("");
 				setNewIssueImage(null);
 				setShowNewIssue(false);
-				// Immediately refresh queries to show new issue on left side
-				await fetchQueries();
-				// If the issue was created for the currently selected project, refresh messages
-				const projectName = projects.find(p => p.id === newIssueProject)?.title;
-				if (projectName === selectedProject) {
-					loadProjectMessages(selectedProject);
-				}
+				fetchQueries();
 			} else {
 				toast.error("Failed to create issue");
 			}
@@ -148,21 +117,20 @@ export default function ContractorQueriesPage() {
 
 	const sendMessage = async () => {
 		if (!newMessage.trim() && !chatImage) return;
-		if (!selectedProject) return toast.error("Please select a project");
+		if (!selectedIssue) return toast.error("Please select an issue");
 
 		setSaving(true);
 		const formData = new FormData();
-		formData.append("projectId", projects.find(p => p.title === selectedProject)?.id);
-		formData.append("contractorId", contractorId);
+		formData.append("queryId", selectedIssue.id);
 		formData.append("message", newMessage);
-		formData.append("senderType", "contractor");
-		formData.append("senderId", contractorId);
+		formData.append("senderType", "client");
+		formData.append("senderId", clientId);
 		if (chatImage) {
 			formData.append("image", chatImage);
 		}
 
 		try {
-			const res = await fetch("/api/queries", {
+			const res = await fetch("/api/queries/reply", {
 				method: "POST",
 				body: formData
 			});
@@ -170,10 +138,8 @@ export default function ContractorQueriesPage() {
 			if (res.ok) {
 				setNewMessage("");
 				setChatImage(null);
-				// Immediately refresh queries to show new issue on left side
-				await fetchQueries();
-				// Also refresh messages to show in chat
-				loadProjectMessages(selectedProject);
+				fetchQueries();
+				loadIssueMessages(selectedIssue);
 			} else {
 				toast.error("Failed to send message");
 			}
@@ -184,104 +150,53 @@ export default function ContractorQueriesPage() {
 		}
 	};
 
-	const loadProjectMessages = (project) => {
-		// Load all messages for selected project
-		const projectQueries = queries.filter(query => query.Project?.title === project);
-		const messages = [];
-		
-		projectQueries.forEach(query => {
-			// Original message - check who sent it
-			if (query.clientId) {
-				// Client sent the original message
-				messages.push({
-					id: query.id,
-					message: query.message,
-					image: query.image,
-					senderType: "client",
-					senderName: `Client: ${query.Client?.name || "Unknown"}`,
-					createdAt: query.createdAt,
-					status: query.status
-				});
-			} else if (query.contractorId) {
-				// Contractor sent the original message
-				messages.push({
-					id: query.id,
-					message: query.message,
-					image: query.image,
-					senderType: "contractor",
-					senderName: "You",
-					createdAt: query.createdAt,
-					status: query.status
-				});
-			} else if (query.adminId || (!query.clientId && !query.contractorId)) {
-				// Admin sent the original message (either has adminId or has no clientId/contractorId)
-				messages.push({
-					id: query.id,
-					message: query.message,
-					image: query.image,
-					senderType: "admin",
-					senderName: "Admin",
-					createdAt: query.createdAt,
-					status: query.status
-				});
+	const loadIssueMessages = (issue) => {
+		// Load messages for the selected issue
+		const messages = [
+			{
+				id: 1,
+				message: issue.message,
+				image: issue.image,
+				senderType: "client",
+				senderName: "You",
+				createdAt: issue.createdAt
 			}
-			
-			// Reply from admin
-			if (query.reply) {
-				messages.push({
-					id: query.id + '_reply',
-					message: query.reply,
-					senderType: "admin",
-					senderName: "Admin",
-					createdAt: query.updatedAt
-				});
-			}
-		});
+		];
 		
-		// Sort messages by date
-		messages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+		if (issue.reply) {
+			messages.push({
+				id: 2,
+				message: issue.reply,
+				senderType: "contractor",
+				senderName: "Contractor",
+				createdAt: issue.updatedAt
+			});
+		}
+		
 		setChatMessages(messages);
 	};
 
-	const selectProject = (project) => {
-		setSelectedProject(project);
-		loadProjectMessages(project);
+	const selectIssue = (issue) => {
+		setSelectedIssue(issue);
+		loadIssueMessages(issue);
 		setTimeout(() => {
 			chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
 		}, 100);
 	};
 
 	useEffect(() => {
-		if (token && contractorId) {
-			setLoading(true);
-			Promise.all([fetchProjects(), fetchQueries()]).then(() => {
-				if (projects.length > 0 && !selectedProject) {
-					const firstProject = projects[0].title;
-					setSelectedProject(firstProject);
-					loadProjectMessages(firstProject);
-				}
-				setLoading(false);
-			}).catch(() => {
-				setLoading(false);
-			});
+		if (token && clientId) {
+			Promise.all([fetchProjects(), fetchQueries()]).then(() =>
+				setLoading(false)
+			);
 		}
-	}, [token, contractorId]);
+	}, [token, clientId]);
 
-	// Real-time polling for messages and queries
-	useEffect(() => {
-		if (!selectedProject) return;
-
-		const interval = setInterval(() => {
-			loadProjectMessages(selectedProject);
-			fetchQueries(); // Also refresh queries to update badges
-		}, 3000); // Poll every 3 seconds
-
-		return () => clearInterval(interval);
-	}, [selectedProject, token, contractorId]);
-
+	// Filter issues based on search
 	const filteredIssues = Object.entries(issuesByProject).reduce((acc, [project, issues]) => {
 		const filtered = issues.filter(issue => 
-			issue.message.toLowerCase().includes(searchTerm.toLowerCase())
+			issue.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			project.toLowerCase().includes(searchTerm.toLowerCase())
 		);
 		if (filtered.length > 0) {
 			acc[project] = filtered;
@@ -325,73 +240,57 @@ export default function ContractorQueriesPage() {
 					</Button>
 				</div>
 
-				{/* Projects List - WhatsApp Style */}
+				{/* Issues List */}
 				<div className="flex-1 overflow-y-auto">
 					{Object.entries(filteredIssues).map(([project, issues]) => (
 						<div key={project} className="border-b">
-							<div
-								onClick={() => selectProject(project)}
-								className={`p-4 cursor-pointer hover:bg-gray-50 border-l-4 ${
-									selectedProject === project ? 'border-blue-500 bg-blue-50' : 'border-transparent'
-								}`}
-							>
-								<div className="flex items-center justify-between mb-2">
-									<div className="flex items-center gap-3">
-										<div>
-											<h3 className="font-semibold text-lg">{project}</h3>
-											<p className="text-sm text-gray-500">
-												{issues.length} {issues.length === 1 ? 'issue' : 'issues'}
-											</p>
+							<div className="px-4 py-2 bg-gray-100 font-semibold text-sm">
+								{project}
+							</div>
+							{issues.map((issue) => (
+								<div
+									key={issue.id}
+									onClick={() => selectIssue(issue)}
+									className={`p-4 cursor-pointer hover:bg-gray-50 border-l-4 ${
+										selectedIssue?.id === issue.id ? 'border-blue-500 bg-blue-50' : 'border-transparent'
+									}`}
+								>
+									<div className="flex items-start justify-between mb-2">
+										<div className="flex-1">
+											<p className="font-medium text-sm line-clamp-2">{issue.message}</p>
+											{issue.image && (
+												<div className="mt-1">
+													<Paperclip className="h-3 w-3 text-gray-400 inline" />
+													<span className="text-xs text-gray-500 ml-1">Attachment</span>
+												</div>
+											)}
 										</div>
-									</div>
-									<div className="flex items-center gap-2">
-										{/* WhatsApp-style notification badge for unread messages */}
-										{(() => {
-											const unreadCount = issues.filter(q => q.status === 'open').length;
-											if (unreadCount > 0) {
-												return (
-													<span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
-														{unreadCount > 99 ? "99+" : unreadCount}
-													</span>
-												);
-											}
-											return null;
-										})()}
 										<Badge 
-											variant="default"
+											variant={issue.status === 'resolved' ? 'default' : 'secondary'}
 											className={`text-xs ${
-												issues.some(q => q.status === 'open') 
-													? 'bg-yellow-100 text-yellow-800' 
-													: issues.some(q => q.status === 'in-progress')
-														? 'bg-green-100 text-green-800'
-														: 'bg-gray-100 text-gray-800'
+												issue.status === 'resolved' 
+													? 'bg-green-100 text-green-800' 
+													: 'bg-yellow-100 text-yellow-800'
 											}`}
 										>
-											{issues.some(q => q.status === 'open') ? (
-												<>
-													<Clock className="h-3 w-3 mr-1" />
-													Open
-												</>
-											) : issues.some(q => q.status === 'in-progress') ? (
-												<>
-													<CheckCircle className="h-3 w-3 mr-1" />
-													In Progress
-												</>
-											) : (
+											{issue.status === 'resolved' ? (
 												<>
 													<CheckCircle className="h-3 w-3 mr-1" />
 													Resolved
 												</>
+											) : (
+												<>
+													<Clock className="h-3 w-3 mr-1" />
+													Open
+												</>
 											)}
 										</Badge>
 									</div>
+									<p className="text-xs text-gray-500">
+										{new Date(issue.createdAt).toLocaleDateString()}
+									</p>
 								</div>
-								{issues.length > 0 && (
-									<div className="text-sm text-gray-600 mt-1 line-clamp-2">
-										{issues[0].message}
-									</div>
-								)}
-							</div>
+							))}
 						</div>
 					))}
 				</div>
@@ -399,31 +298,28 @@ export default function ContractorQueriesPage() {
 
 			{/* Chat Interface */}
 			<div className="flex-1 flex flex-col">
-				{selectedProject ? (
+				{selectedIssue ? (
 					<>
 						{/* Chat Header */}
 						<div className="bg-white border-b p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<h2 className="font-semibold text-lg">
-										{selectedProject}
+										{selectedIssue.Project?.title || "Unknown Project"}
 									</h2>
 									<p className="text-sm text-gray-500">
-										{issuesByProject[selectedProject]?.length || 0} issues
+										Issue #{selectedIssue.id}
 									</p>
 								</div>
 								<Badge 
-									variant="default"
-									className={`text-xs ${
-										issuesByProject[selectedProject]?.some(q => q.status === 'open') 
-											? 'bg-yellow-100 text-yellow-800' 
-											: issuesByProject[selectedProject]?.some(q => q.status === 'in-progress')
-												? 'bg-green-100 text-green-800'
-												: 'bg-gray-100 text-gray-800'
+									variant={selectedIssue.status === 'resolved' ? 'default' : 'secondary'}
+									className={`${
+										selectedIssue.status === 'resolved' 
+											? 'bg-green-100 text-green-800' 
+											: 'bg-yellow-100 text-yellow-800'
 									}`}
 								>
-									{issuesByProject[selectedProject]?.some(q => q.status === 'open') ? 'Open Issues' : 
-									 issuesByProject[selectedProject]?.some(q => q.status === 'in-progress') ? 'In Progress' : 'All Resolved'}
+									{selectedIssue.status === 'resolved' ? 'Resolved' : 'Open'}
 								</Badge>
 							</div>
 						</div>
@@ -434,11 +330,11 @@ export default function ContractorQueriesPage() {
 								<div
 									key={msg.id}
 									className={`mb-4 flex ${
-										msg.senderType === "contractor" ? "justify-end" : "justify-start"
+										msg.senderType === "client" ? "justify-end" : "justify-start"
 									}`}
 								>
 									<div className={`max-w-xs lg:max-w-md ${
-										msg.senderType === "contractor" 
+										msg.senderType === "client" 
 											? "bg-blue-500 text-white" 
 											: "bg-white border"
 									} rounded-lg p-3 shadow`}>
@@ -456,9 +352,9 @@ export default function ContractorQueriesPage() {
 											</div>
 										)}
 										<p className={`text-xs mt-1 ${
-											msg.senderType === "contractor" ? "text-blue-100" : "text-gray-500"
+											msg.senderType === "client" ? "text-blue-100" : "text-gray-500"
 										}`}>
-											{formatMessageTime(msg.createdAt)}
+											{new Date(msg.createdAt).toLocaleTimeString()}
 										</p>
 									</div>
 								</div>
@@ -524,10 +420,10 @@ export default function ContractorQueriesPage() {
 						<div className="text-center">
 							<MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
 							<h3 className="text-lg font-semibold text-gray-600 mb-2">
-								Select a project to start chatting
+								Select an issue to start chatting
 							</h3>
 							<p className="text-gray-500">
-								Choose a project from the sidebar to view and send messages
+								Choose an issue from the sidebar to view and send messages
 							</p>
 						</div>
 					</div>

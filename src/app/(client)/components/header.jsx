@@ -133,13 +133,13 @@ export default function HeaderPage() {
 												href="/client"
 												className="block px-3 py-2 text-base text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-600"
 											>
-												Join as Client
+												Login as Client
 											</Link>
 											<Link
 												href="/contractor"
 												className="block px-3 py-2 text-base text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-600"
 											>
-												Join as Contractor
+												Login as Contractor
 											</Link>
 											<Link
 												href="/about-us"

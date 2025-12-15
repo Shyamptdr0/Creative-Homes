@@ -63,14 +63,24 @@ export default function SidebarPage({
 												type="button"
 												onClick={() => handleSetActivePage(item.title)}
 												className={cn(
-													"cursor-pointer flex items-center gap-3 py-3 px-3 rounded-lg transition-all text-[16px] font-medium",
+													"cursor-pointer flex items-center gap-3 py-3 px-3 rounded-lg transition-all text-[16px] font-medium justify-between",
 													activePage === item.title
 														? "bg-primary text-white shadow-sm hover:bg-gray-200"
 														: "text-gray-700 hover:bg-gray-200 hover:text-black"
 												)}
 											>
-												<item.icon className="h-6 w-6" />
-												<span>{item.title}</span>
+												<div className="flex items-center gap-3">
+													<item.icon className="h-6 w-6" />
+													<span>{item.title}</span>
+												</div>
+												{item.badge && item.badge > 0 && (
+													<span className={cn(
+														"bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold",
+														activePage === item.title ? "bg-white text-red-500" : "bg-red-500 text-white"
+													)}>
+														{item.badge > 99 ? "99+" : item.badge}
+													</span>
+												)}
 											</SidebarMenuButton>
 										</SidebarMenuItem>
 									))}
