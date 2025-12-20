@@ -10,10 +10,11 @@ import {
 import {Button} from "@/components/ui/button";
 import {Textarea} from "@/components/ui/textarea";
 import {Separator} from "@/components/ui/separator";
+import {Badge} from "@/components/ui/badge";
 
 
 import {
-	Loader2, Users, Briefcase, FolderKanban, Wallet, Bell, ChevronLeft
+	Loader2, Users, Briefcase, FolderKanban, Wallet, Bell, ChevronLeft, Calendar, IndianRupee, AlertCircle
 } from "lucide-react";
 
 import {
@@ -58,6 +59,10 @@ export default function AdminDashboard({setActivePage}) {
 	const [selectedContractor, setSelectedContractor] = useState(null);
 	const [contractorProjects, setContractorProjects] = useState([]);
 
+	// PAYMENT NOTIFICATION STATES
+	const [paymentNotifications, setPaymentNotifications] = useState([]);
+	const [showPaymentAlert, setShowPaymentAlert] = useState(false);
+
 	// OPEN DIALOG FOR CONTRACTOR PROJECTS
 	function toggleRow(contractor) {
 		setSelectedContractor(contractor);
@@ -76,6 +81,7 @@ export default function AdminDashboard({setActivePage}) {
 	useEffect(() => {
 		fetchStats();
 		fetchNewQueries();
+		checkPaymentNotifications();
 	}, []);
 
 	useEffect(() => {
@@ -161,6 +167,119 @@ export default function AdminDashboard({setActivePage}) {
 		const res = await fetch("/api/queries/count");
 		const data = await res.json();
 		setNewQueries(data.newQueries || 0);
+	}
+
+	/* ------------------------------
+	   CHECK PAYMENT NOTIFICATIONS
+	------------------------------ */
+	async function checkPaymentNotifications() {
+		try {
+			console.log("ADMIN PAYMENT NOTIFICATIONS - Checking...");
+			const token = sessionStorage.getItem("token");
+			if (!token) {
+				console.log("ADMIN PAYMENT NOTIFICATIONS - No token found");
+				return;
+			}
+
+			// First get all projects
+			const projectsRes = await fetch("/api/projects", {
+				headers: { Authorization: `Bearer ${token}` },
+			});
+			const projectsData = await projectsRes.json();
+			console.log("ADMIN PAYMENT NOTIFICATIONS - Projects data:", projectsData);
+			
+			if (!projectsData.success || !projectsData.projects) {
+				console.log("ADMIN PAYMENT NOTIFICATIONS - No projects found");
+				return;
+			}
+
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const allInstallments = [];
+
+			// Get payments for each project
+			for (const project of projectsData.projects) {
+				console.log(`ADMIN PAYMENT NOTIFICATIONS - Checking project: ${project.title}`);
+				const payRes = await fetch(`/api/payment?projectId=${project.id}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				const payData = await payRes.json();
+				console.log(`ADMIN PAYMENT NOTIFICATIONS - Payments for project ${project.title}:`, payData);
+
+				if (payData.success && payData.payments) {
+					payData.payments.forEach((payment, paymentIndex) => {
+						console.log(`ADMIN PAYMENT NOTIFICATIONS - Payment ${paymentIndex + 1}:`, payment);
+						console.log(`ADMIN PAYMENT NOTIFICATIONS - Installments:`, payment.installments);
+						
+						if (payment.installments && payment.installments.length > 0) {
+							payment.installments.forEach((installment, installmentIndex) => {
+								const dueDate = new Date(installment.dueDate);
+								dueDate.setHours(0, 0, 0, 0);
+								
+								const daysUntilDue = Math.floor((dueDate - today) / (1000 * 60 * 60 * 24));
+								
+								console.log(`ADMIN PAYMENT NOTIFICATIONS - Installment ${installmentIndex + 1}:`, {
+									dueDate: installment.dueDate,
+									daysUntilDue: daysUntilDue,
+									paid: installment.paid,
+									amount: installment.amount
+								});
+								
+								// Collect all installments
+								allInstallments.push({
+									...installment,
+									payment: payment,
+									daysUntilDue: daysUntilDue,
+									type: payment.payerType === 'client' ? 'client_payment' : 'contractor_payment'
+								});
+							});
+						} else {
+							console.log(`ADMIN PAYMENT NOTIFICATIONS - No installments found for payment ${paymentIndex + 1}`);
+						}
+					});
+				} else {
+					console.log(`ADMIN PAYMENT NOTIFICATIONS - No payments found for project ${project.title}`);
+				}
+			}
+
+			// Find only the next upcoming installment for each payment type
+			const notifications = [];
+			
+			// Find next client payment
+			const nextClientPayment = allInstallments
+				.filter(inst => inst.type === 'client_payment' && !inst.paid)
+				.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0];
+			
+			// Find next contractor payment
+			const nextContractorPayment = allInstallments
+				.filter(inst => inst.type === 'contractor_payment' && !inst.paid)
+				.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0];
+
+			if (nextClientPayment) {
+				console.log("ADMIN PAYMENT NOTIFICATIONS - Adding next client payment");
+				notifications.push(nextClientPayment);
+			}
+			
+			if (nextContractorPayment) {
+				console.log("ADMIN PAYMENT NOTIFICATIONS - Adding next contractor payment");
+				notifications.push(nextContractorPayment);
+			}
+
+			// Sort by due date (earliest first)
+			notifications.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+			
+			console.log("ADMIN PAYMENT NOTIFICATIONS - Final notifications:", notifications);
+			console.log("ADMIN PAYMENT NOTIFICATIONS - Found:", notifications.length);
+			setPaymentNotifications(notifications);
+			if (notifications.length > 0) {
+				console.log("ADMIN PAYMENT NOTIFICATIONS - Setting showPaymentAlert to true");
+				setShowPaymentAlert(true);
+			} else {
+				console.log("ADMIN PAYMENT NOTIFICATIONS - No notifications to show");
+			}
+		} catch (error) {
+			console.error('ADMIN PAYMENT NOTIFICATIONS - Error:', error);
+		}
 	}
 
 	/* ------------------------------
@@ -461,6 +580,112 @@ export default function AdminDashboard({setActivePage}) {
 	   UI STARTS
 	------------------------------ */
 	return (<div className="p-6">
+
+		{/* DEBUG: Show notification state */}
+		{(() => {
+			console.log("ADMIN PAYMENT NOTIFICATIONS - Rendering check:", {
+				showPaymentAlert,
+				paymentNotificationsLength: paymentNotifications.length,
+				paymentNotifications
+			});
+			return null;
+		})()}
+
+		{/* PAYMENT NOTIFICATION ALERT */}
+		{showPaymentAlert && paymentNotifications.length > 0 && (
+			<Dialog open={showPaymentAlert} onOpenChange={setShowPaymentAlert}>
+				<DialogContent className="max-w-2xl">
+					<DialogHeader>
+						<DialogTitle className="text-xl font-bold flex items-center gap-2">
+							<AlertCircle className="h-5 w-5 text-orange-600" />
+							Payment Reminders
+						</DialogTitle>
+					</DialogHeader>
+
+					<div className="space-y-4 max-h-[60vh] overflow-y-auto">
+						{paymentNotifications.map((notification, index) => (
+							<div key={index} className={`p-4 rounded-lg border ${
+								notification.paid 
+									? 'bg-gray-50 border-gray-200 opacity-75' 
+									: notification.type === 'client_payment' 
+										? 'bg-blue-50 border-blue-200' 
+										: 'bg-green-50 border-green-200'
+							}`}>
+								<div className="flex items-start justify-between">
+									<div className="flex-1">
+										<div className="flex items-center gap-2 mb-2">
+											{notification.type === 'client_payment' ? (
+												<Users className="h-4 w-4 text-blue-600" />
+											) : (
+												<Briefcase className="h-4 w-4 text-green-600" />
+											)}
+											<span className="font-semibold">
+												{notification.type === 'client_payment' 
+													? 'Take Payment from Client' 
+													: 'Give Payment to Contractor'}
+											</span>
+											{notification.paid && (
+												<Badge className="bg-gray-100 text-gray-600 text-xs">
+													PAID
+												</Badge>
+											)}
+										</div>
+										
+										<div className="space-y-1 text-sm">
+											<p><strong>Project:</strong> {notification.payment.project?.title}</p>
+											<p><strong>Stage:</strong> {notification.payment.stage?.stageName}</p>
+											<p><strong>Amount:</strong> ₹{notification.amount?.toLocaleString('en-IN')}</p>
+											<p><strong>Due Date:</strong> {new Date(notification.dueDate).toLocaleDateString('en-IN', {
+												day: 'numeric',
+												month: 'short',
+												year: 'numeric'
+											})}</p>
+											<p><strong>Status:</strong> 
+												{notification.paid ? (
+													<span className="ml-1 font-semibold text-green-600">
+														Paid
+													</span>
+												) : (
+													<span className={`ml-1 font-semibold ${
+														notification.daysUntilDue < 0 ? 'text-red-600' :
+														notification.daysUntilDue === 0 ? 'text-orange-600' :
+														notification.daysUntilDue === 1 ? 'text-yellow-600' :
+														'text-blue-600'
+													}`}>
+														{notification.daysUntilDue < 0 ? `Overdue by ${Math.abs(notification.daysUntilDue)} days` :
+														 notification.daysUntilDue === 0 ? 'Due Today' :
+														 notification.daysUntilDue === 1 ? 'Due Tomorrow' :
+														 `Due in ${notification.daysUntilDue} days`}
+													</span>
+												)}
+											</p>
+										</div>
+									</div>
+									
+									<div className="ml-4">
+										<Badge className={
+											notification.paid
+												? 'bg-gray-100 text-gray-800'
+												: notification.type === 'client_payment' 
+													? 'bg-blue-100 text-blue-800' 
+													: 'bg-green-100 text-green-800'
+										}>
+											#{notification.installmentNo}
+										</Badge>
+									</div>
+								</div>
+							</div>
+						))}
+					</div>
+
+					<div className="flex justify-end pt-4 border-t">
+						<Button onClick={() => setShowPaymentAlert(false)}>
+							Got it, I'll handle these payments
+						</Button>
+					</div>
+				</DialogContent>
+			</Dialog>
+		)}
 
 		{/* HEADER */}
 		<div className="flex justify-between items-center mb-8">

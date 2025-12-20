@@ -31,7 +31,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 
-import { Loader2, FolderOpen, ImagePlus } from "lucide-react";
+import { Loader2, FolderOpen, ImagePlus, FileText, File } from "lucide-react";
 
 export default function AdminDrawingsPage() {
 	const [projects, setProjects] = useState([]);
@@ -73,7 +73,24 @@ export default function AdminDrawingsPage() {
 		setDrawings(draw);
 	};
 
-	const allowed = ["image/", "video/"];
+	const allowed = ["image/", "video/", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
+
+	const getFileIcon = (fileName) => {
+		const ext = fileName.split('.').pop().toLowerCase();
+		switch(ext) {
+			case 'pdf': return <FileText className="text-red-600 w-8 h-8" />;
+			case 'doc':
+			case 'docx': return <FileText className="text-blue-600 w-8 h-8" />;
+			case 'xls':
+			case 'xlsx': return <FileText className="text-green-600 w-8 h-8" />;
+			case 'txt': return <FileText className="text-gray-600 w-8 h-8" />;
+			default: return <File className="text-gray-600 w-8 h-8" />;
+		}
+	};
+
+	const isPreviewable = (file) => {
+		return file.type.startsWith('image/') || file.type.startsWith('video/');
+	};
 
 	/* -------- Folder Upload -------- */
 	const handleFolderSelect = (e) => {
@@ -164,7 +181,21 @@ export default function AdminDrawingsPage() {
 		setSelectedProjectDrawings([]);
 	};
 
+	const isPdf = (u) => /\.(pdf)$/i.test(u);
 	const isImage = (u) => /\.(jpg|jpeg|png|gif|webp)$/i.test(u);
+	const isVideo = (u) => /\.(mp4|avi|mov|wmv|flv|webm)$/i.test(u);
+	const getFileTypeIcon = (fileName) => {
+		const ext = fileName.split('.').pop().toLowerCase();
+		switch(ext) {
+			case 'pdf': return <FileText className="text-red-600 w-6 h-6" />;
+			case 'doc':
+			case 'docx': return <FileText className="text-blue-600 w-6 h-6" />;
+			case 'xls':
+			case 'xlsx': return <FileText className="text-green-600 w-6 h-6" />;
+			case 'txt': return <FileText className="text-gray-600 w-6 h-6" />;
+			default: return <File className="text-gray-600 w-6 h-6" />;
+		}
+	};
 	const projectDetails =
 		selectedProject ? projects.find((p) => p.id === selectedProject) : null;
 
@@ -215,24 +246,24 @@ export default function AdminDrawingsPage() {
 						webkitdirectory=""
 						directory=""
 						disabled={folderDisabled}
-						accept="image/*,video/*"
+						accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
 						onChange={handleFolderSelect}
 						className="hidden"
 					/>
 				</label>
 
-				{/* Single Image Upload */}
+				{/* Single File Upload */}
 				<label
 					className={`flex items-center gap-2 border p-2 rounded cursor-pointer text-sm w-full md:w-48 
 						${singleDisabled ? "bg-gray-200 cursor-not-allowed" : ""}`}
 				>
 					<ImagePlus className="text-green-600 w-4 h-4" />
-					<span>Image</span>
+					<span>Files</span>
 					<input
 						id="singleInput"
 						type="file"
 						disabled={singleDisabled}
-						accept="image/*,video/*"
+						accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
 						onChange={handleSingleSelect}
 						className="hidden"
 					/>
@@ -251,8 +282,17 @@ export default function AdminDrawingsPage() {
 			{/* ================= Small Previews ================= */}
 			{folderPreview.length > 0 || singlePreview.length > 0 ? (
 				<div className="grid grid-cols-6 gap-3 mt-3">
-					{folderPreview.concat(singlePreview).map((src, i) => (
-						<img key={i} src={src} className="w-full h-20 rounded border object-cover shadow-sm" />
+					{folderFiles.concat(singleFiles).map((file, i) => (
+						<div key={i} className="border rounded p-2 flex flex-col items-center">
+							{isPreviewable(file) ? (
+								<img src={folderPreview.concat(singlePreview)[i]} className="w-full h-20 rounded object-cover" />
+							) : (
+								<div className="flex items-center justify-center h-20">
+									{getFileIcon(file.name)}
+								</div>
+							)}
+							<span className="text-xs text-gray-600 mt-1 truncate w-full text-center">{file.name}</span>
+						</div>
 					))}
 				</div>
 			) : null}
@@ -327,14 +367,25 @@ export default function AdminDrawingsPage() {
 								{selectedProjectDrawings.map((d, i) => (
 									<TableRow key={d.id}>
 										<TableCell>
-											<img
-												src={d.fileUrl}
-												className="w-16 h-16 rounded cursor-pointer object-cover"
-												onClick={() => {
-													setPreviewIndex(i);
-													setOpenPreview(true);
-												}}
-											/>
+											{isImage(d.fileUrl) ? (
+												<img
+													src={d.fileUrl}
+													className="w-16 h-16 rounded cursor-pointer object-cover"
+													onClick={() => {
+														setPreviewIndex(i);
+														setOpenPreview(true);
+													}}
+												/>
+											) : (
+												<div className="flex items-center justify-center w-16 h-16 border rounded cursor-pointer"
+													onClick={() => {
+														setPreviewIndex(i);
+														setOpenPreview(true);
+													}}
+												>
+													{getFileTypeIcon(d.title)}
+												</div>
+											)}
 										</TableCell>
 
 										<TableCell>{d.title}</TableCell>
@@ -380,25 +431,151 @@ export default function AdminDrawingsPage() {
 
 						<div className="bg-gray-100 p-4 rounded flex flex-col items-center">
 
-							{/* IMAGE OR VIDEO */}
+							{/* IMAGE OR VIDEO OR DOCUMENT */}
 							{isImage(selectedProjectDrawings[previewIndex].fileUrl) ? (
 								<img
 									src={selectedProjectDrawings[previewIndex].fileUrl}
 									className="max-h-[70vh] rounded"
 								/>
-							) : (
+							) : isVideo(selectedProjectDrawings[previewIndex].fileUrl) ? (
 								<video
 									controls
 									className="max-h-[70vh] rounded"
 									src={selectedProjectDrawings[previewIndex].fileUrl}
 								/>
+							) : isPdf(selectedProjectDrawings[previewIndex].fileUrl) ? (
+								<div className="w-full max-h-[80vh] flex flex-col">
+									{/* PDF Header */}
+									<div className="bg-gray-50 border-b p-4 rounded-t-lg flex items-center justify-between">
+										<div className="flex items-center gap-3">
+											<FileText className="text-red-600 w-6 h-6" />
+											<div>
+												<h3 className="font-semibold text-gray-800">{selectedProjectDrawings[previewIndex].title}</h3>
+												<p className="text-sm text-gray-500">PDF Document</p>
+											</div>
+										</div>
+										<div className="flex items-center gap-2">
+											<span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+												{selectedProjectDrawings[previewIndex].fileUrl.startsWith('/uploads/') ? 'Local File' : 'Cloudinary'}
+											</span>
+										</div>
+									</div>
+									
+									{/* PDF Viewer */}
+									<div className="flex-1 bg-white border rounded-b-lg overflow-hidden">
+										{selectedProjectDrawings[previewIndex].fileUrl.startsWith('/uploads/') ? (
+											<iframe
+												src={selectedProjectDrawings[previewIndex].fileUrl}
+												className="w-full h-full min-h-[60vh] border-0"
+												title={`PDF: ${selectedProjectDrawings[previewIndex].title}`}
+											/>
+										) : (
+											<iframe
+												src={`https://docs.google.com/viewer?url=${encodeURIComponent(selectedProjectDrawings[previewIndex].fileUrl)}&embedded=true`}
+												className="w-full h-full min-h-[60vh] border-0"
+												title={`PDF: ${selectedProjectDrawings[previewIndex].title}`}
+											/>
+										)}
+									</div>
+									
+									{/* PDF Controls */}
+									<div className="bg-gray-50 border-t p-4 rounded-b-lg">
+										<div className="flex items-center justify-between">
+											<div className="flex gap-2">
+												<Button variant="outline" size="sm" onClick={prevImage}>
+													Previous
+												</Button>
+												<Button variant="outline" size="sm" onClick={nextImage}>
+													Next
+												</Button>
+											</div>
+											<div className="flex gap-2">
+												<a 
+													href={selectedProjectDrawings[previewIndex].fileUrl}
+													target="_blank" 
+													rel="noopener noreferrer"
+													className="inline-flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+												>
+													Open in New Tab
+												</a>
+												<a 
+													href={selectedProjectDrawings[previewIndex].fileUrl}
+													download={selectedProjectDrawings[previewIndex].title}
+													className="inline-flex items-center px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+												>
+													Download
+												</a>
+											</div>
+										</div>
+									</div>
+								</div>
+							) : (
+								<div className="w-full max-h-[80vh] flex flex-col">
+									{/* Document Header */}
+									<div className="bg-gray-50 border-b p-4 rounded-t-lg flex items-center justify-between">
+										<div className="flex items-center gap-3">
+											{getFileTypeIcon(selectedProjectDrawings[previewIndex].title)}
+											<div>
+												<h3 className="font-semibold text-gray-800">{selectedProjectDrawings[previewIndex].title}</h3>
+												<p className="text-sm text-gray-500">Document</p>
+											</div>
+										</div>
+										<div className="flex items-center gap-2">
+											<span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+												{selectedProjectDrawings[previewIndex].fileUrl.startsWith('/uploads/') ? 'Local File' : 'Cloudinary'}
+											</span>
+										</div>
+									</div>
+									
+									{/* Document Viewer */}
+									<div className="flex-1 bg-white border rounded-b-lg overflow-hidden">
+										{selectedProjectDrawings[previewIndex].fileUrl.startsWith('/uploads/') ? (
+											<iframe
+												src={selectedProjectDrawings[previewIndex].fileUrl}
+												className="w-full h-full min-h-[60vh] border-0"
+												title={`Document: ${selectedProjectDrawings[previewIndex].title}`}
+											/>
+										) : (
+											<iframe
+												src={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(selectedProjectDrawings[previewIndex].fileUrl)}`}
+												className="w-full h-full min-h-[60vh] border-0"
+												title={`Document: ${selectedProjectDrawings[previewIndex].title}`}
+											/>
+										)}
+									</div>
+									
+									{/* Document Controls */}
+									<div className="bg-gray-50 border-t p-4 rounded-b-lg">
+										<div className="flex items-center justify-between">
+											<div className="flex gap-2">
+												<Button variant="outline" size="sm" onClick={prevImage}>
+													Previous
+												</Button>
+												<Button variant="outline" size="sm" onClick={nextImage}>
+													Next
+												</Button>
+											</div>
+											<div className="flex gap-2">
+												<a 
+													href={selectedProjectDrawings[previewIndex].fileUrl}
+													target="_blank" 
+													rel="noopener noreferrer"
+													className="inline-flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+												>
+													View in Browser
+												</a>
+												<a 
+													href={selectedProjectDrawings[previewIndex].fileUrl}
+													download={selectedProjectDrawings[previewIndex].title}
+													className="inline-flex items-center px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+												>
+													Download
+												</a>
+											</div>
+										</div>
+									</div>
+								</div>
 							)}
-
-							{/* NEXT / PREV */}
-							<div className="flex gap-4 mt-4">
-								<Button variant="outline" onClick={prevImage}>Previous</Button>
-								<Button variant="outline" onClick={nextImage}>Next</Button>
-							</div>
 						</div>
 					</DialogContent>
 				</Dialog>

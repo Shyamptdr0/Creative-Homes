@@ -7,6 +7,7 @@ import Client from "@/models/Client";
 import Contractor from "@/models/Contractor";
 import Project from "@/models/Project";
 import PaymentStage from "@/models/PaymentStage";
+import PaymentInstallment from "@/models/PaymentInstallment";
 
 export async function GET(req) {
 	try {
@@ -27,6 +28,11 @@ export async function GET(req) {
 				{ model: Contractor, as: "contractor" },
 				{ model: Project, as: "project" },
 				{ model: PaymentStage, as: "stage" },
+				{ 
+					model: PaymentInstallment, 
+					as: "installments",
+					order: [["installmentNo", "ASC"]]
+				},
 			],
 			order: [[{ model: PaymentStage, as: "stage" }, "stageOrder", "ASC"]],
 		});

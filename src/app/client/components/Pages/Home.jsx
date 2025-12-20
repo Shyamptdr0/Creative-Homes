@@ -163,7 +163,7 @@ export default function HomePage() {
 				if (upcomingPayments.length > 0) {
 					const nextPayment = upcomingPayments[0];
 					const dueDate = new Date(nextPayment.dueDate);
-					const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+					const daysUntilDue = Math.floor((dueDate - today) / (1000 * 60 * 60 * 24));
 					
 					const notificationData = {
 						projectTitle: nextPayment.payment.project?.title || 'Unknown Project',
