@@ -6,8 +6,8 @@ export default function HeaderPage() {
 		<div className="flex items-center justify-between px-4 py-4 shadow-md bg-white">
 
 			{/* Right: Text */}
-			<div className="text-lg font-semibold">
-				Creative Homes
+			<div className="text-lg font-bold uppercase tracking-tighter text-primary">
+				Urban Landscape
 			</div>
 		</div>
 	);

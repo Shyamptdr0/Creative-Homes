@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -22,15 +22,41 @@ import {
 	NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 
-import logo from "../../../../public/logo_1-removebg-preview.png";
-import logoName from "../../../../public/logo_2-removebg-preview.png";
+const Logo = () => (
+	<div className="flex items-center gap-3">
+		<svg width="45" height="45" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white">
+			<path d="M10 70V90H90V70" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+			<path d="M50 10L10 50H25V80H75V50H90L50 10Z" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+			<path d="M20 40L40 20" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+			<path d="M30 50L50 30" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+		</svg>
+		<span className="text-2xl font-black tracking-tighter text-white uppercase">
+			Urban <span className="text-white/80 font-bold">Landscape</span>
+		</span>
+	</div>
+);
 
-export default function HeaderPage() {
+export default function HeaderPage({ isGlobal = false }) {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const pathname = usePathname();
 
+	const [scrolled, setScrolled] = useState(false);
+	const [mounted, setMounted] = useState(false);
 	const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 	const isActive = (path) => pathname === path;
+
+	useEffect(() => {
+		setMounted(true);
+		const handleScroll = () => {
+			if (window.scrollY > 10) {
+				setScrolled(true);
+			} else {
+				setScrolled(false);
+			}
+		};
+		window.addEventListener("scroll", handleScroll);
+		return () => window.removeEventListener("scroll", handleScroll);
+	}, []);
 
 	// Form data for Book a Meeting
 	const [formData, setFormData] = useState({
@@ -67,29 +93,24 @@ export default function HeaderPage() {
 		});
 	};
 
+
+
+	if (isGlobal && pathname === "/") return null;
+
 	return (
-		<header className="px-6 md:px-16 lg:px-20 py-4 bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm transition-all duration-300">
+		<header
+			className={`px-6 md:px-16 lg:px-20 py-4 left-0 w-full z-50 transition-all duration-700 transform ${mounted ? "translate-y-0" : "-translate-y-full"
+				} ${pathname === "/"
+					? "absolute top-0 bg-transparent border-none shadow-none"
+					: "fixed top-0 bg-black shadow-2xl border-b border-white/10"
+				}`}
+		>
 			<div className="flex items-center justify-between">
 				{/* LOGO + NAVIGATION */}
 				<div className="flex items-center gap-2">
 					<div className="flex items-center">
 						<Link href="/" className="flex items-center">
-							<Image
-								src={logo}
-								alt="Logo"
-								width={65}
-								height={45}
-								className="object-contain"
-							/>
-						</Link>
-						<Link href="/" className="flex items-center">
-							<Image
-								src={logoName}
-								alt="Logo Name"
-								width={130}
-								height={55}
-								className="object-contain pt-1"
-							/>
+							<Logo />
 						</Link>
 					</div>
 
@@ -104,19 +125,17 @@ export default function HeaderPage() {
 							<Link
 								key={link.path}
 								href={link.path}
-								className={`group relative text-gray-700 transition-all duration-300 tracking-wide pb-1 ${
-									isActive(link.path)
-										? "text-blue-600 font-semibold"
-										: "hover:text-blue-600"
-								}`}
+								className={`group relative transition-all duration-300 tracking-wide pb-1 ${isActive(link.path)
+										? "text-white font-bold"
+										: "text-white/70 hover:text-white"
+									}`}
 							>
 								{link.name}
 								<span
-									className={`absolute left-0 -bottom-[2px] h-[2px] rounded-full transition-all duration-300 ease-in-out ${
-										isActive(link.path)
-											? "w-full bg-blue-600"
-											: "w-0 bg-blue-600 group-hover:w-full"
-									}`}
+									className={`absolute left-0 -bottom-[2px] h-[2px] rounded-full transition-all duration-300 ease-in-out ${isActive(link.path)
+											? "w-full bg-white"
+											: "w-0 bg-white group-hover:w-full"
+										}`}
 								></span>
 							</Link>
 						))}
@@ -124,7 +143,7 @@ export default function HeaderPage() {
 						<NavigationMenu>
 							<NavigationMenuList>
 								<NavigationMenuItem>
-									<NavigationMenuTrigger className="text-gray-700 font-medium hover:text-blue-600 focus:text-blue-600 text-base cursor-pointer py-0 px-2">
+									<NavigationMenuTrigger className="text-white/70 font-medium hover:text-white focus:text-white text-base cursor-pointer py-0 px-2 bg-transparent hover:bg-white/10 transition-colors">
 										More
 									</NavigationMenuTrigger>
 									<NavigationMenuContent className="p-3 min-w-[200px] bg-white rounded-lg shadow-md border border-gray-100">
@@ -165,11 +184,13 @@ export default function HeaderPage() {
 				<div className="flex items-center gap-4">
 					{/* BOOK A MEETING MODAL */}
 					<Dialog>
-						<DialogTrigger asChild>
-							<Button className="cursor-pointer hidden lg:block bg-lime-500 hover:bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-lg transition duration-200 uppercase text-sm tracking-wider">
-								Book a meeting
-							</Button>
-						</DialogTrigger>
+						<div className={`transition-all duration-500 transform ${scrolled ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-95 translate-x-10 pointer-events-none"}`}>
+							<DialogTrigger asChild>
+								<Button className="cursor-pointer hidden lg:block bg-white hover:bg-white/90 text-primary font-bold py-2.5 px-6 rounded-lg shadow-lg transition duration-200 uppercase text-sm tracking-wider">
+									Book a meeting
+								</Button>
+							</DialogTrigger>
+						</div>
 
 						<DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white p-8 rounded-2xl">
 							<DialogHeader>
@@ -192,7 +213,7 @@ export default function HeaderPage() {
 											onChange={handleChange}
 											placeholder="Enter your full name"
 											required
-											className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-lime-500"
+											className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
 										/>
 									</div>
 
@@ -208,7 +229,7 @@ export default function HeaderPage() {
 											onChange={handleChange}
 											placeholder="Enter your email"
 											required
-											className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-lime-500"
+											className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
 										/>
 									</div>
 
@@ -224,7 +245,7 @@ export default function HeaderPage() {
 											onChange={handleChange}
 											placeholder="Enter your mobile number"
 											required
-											className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-lime-500"
+											className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
 										/>
 									</div>
 
@@ -238,7 +259,7 @@ export default function HeaderPage() {
 											value={formData.city}
 											onChange={handleChange}
 											required
-											className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-lime-500"
+											className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
 										>
 											<option value="">Select a city</option>
 											{cities.map((city) => (
@@ -263,7 +284,7 @@ export default function HeaderPage() {
 													checked={formData.ownPlot === "Yes"}
 													onChange={handleChange}
 													required
-													className="accent-lime-500"
+													className="accent-primary"
 												/>
 												Yes
 											</label>
@@ -275,7 +296,7 @@ export default function HeaderPage() {
 													checked={formData.ownPlot === "No"}
 													onChange={handleChange}
 													required
-													className="accent-lime-500"
+													className="accent-primary"
 												/>
 												No
 											</label>
@@ -292,7 +313,7 @@ export default function HeaderPage() {
 											value={formData.startTime}
 											onChange={handleChange}
 											required
-											className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-lime-500"
+											className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
 										>
 											<option value="">Select timeline</option>
 											<option value="0-3 months">0-3 months</option>
@@ -310,7 +331,7 @@ export default function HeaderPage() {
 											checked={formData.agree}
 											onChange={handleChange}
 											required
-											className="accent-lime-500"
+											className="accent-primary"
 										/>
 										<label className="text-sm text-gray-700">
 											I agree to the Privacy Policy and Terms & Conditions.
@@ -322,7 +343,7 @@ export default function HeaderPage() {
 								<div className="text-center">
 									<Button
 										type="submit"
-										className="bg-lime-600 hover:bg-lime-700 text-white font-semibold px-8 py-3 rounded-lg shadow-md transition-all duration-300"
+										className="bg-primary hover:bg-primary/90 text-white font-semibold px-8 py-3 rounded-lg shadow-md transition-all duration-300"
 									>
 										Book a Meeting
 									</Button>
@@ -367,7 +388,7 @@ export default function HeaderPage() {
 						{ name: "Our Projects", path: "/projects" },
 						{ name: "How it works", path: "/how-it-works" },
 						{ name: "Services", path: "/services" },
-						{ name: "Cost Estimator", path:"/cost-estimator" },
+						{ name: "Cost Estimator", path: "/cost-estimator" },
 						{ name: "Join as Client", path: "/join/client" },
 						{ name: "Join as Contractor", path: "/join/contractor" },
 						{ name: "About us", path: "/about-us" },
@@ -376,9 +397,8 @@ export default function HeaderPage() {
 						<Link
 							key={link.path}
 							href={link.path}
-							className={`text-gray-700 font-medium hover:bg-gray-100 w-full text-center py-3 px-4 transition-colors ${
-								isActive(link.path) ? "text-blue-600 font-semibold" : ""
-							}`}
+							className={`text-gray-700 font-medium hover:bg-gray-100 w-full text-center py-3 px-4 transition-colors ${isActive(link.path) ? "text-blue-600 font-semibold" : ""
+								}`}
 							onClick={toggleMobileMenu}
 						>
 							{link.name}

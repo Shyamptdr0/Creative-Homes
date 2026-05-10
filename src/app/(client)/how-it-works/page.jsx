@@ -8,127 +8,132 @@ import {
 	Hammer,
 	Building2,
 	Home,
+	CheckCircle2
 } from "lucide-react";
-import Image from "next/image";
+import { motion } from "framer-motion";
 import BookMeetingPage from "@/app/(client)/components/BookaMeeting";
-import workimg from "../../../../public/Images/work.jpg";
 
 export default function HowToWorkPage() {
 	const steps = [
 		{
-			icon: <Handshake className="w-8 h-8 text-lime-500" />,
+			id: "01",
+			icon: <Handshake className="w-6 h-6 text-primary" />,
 			title: "Book a meeting",
-			description:
-				"Schedule a session to learn about us and our process.",
+			description: "Schedule a session to learn about us and our process. Your journey starts with a conversation where we align your vision with our expertise.",
 		},
 		{
-			icon: <Search className="w-8 h-8 text-lime-500" />,
+			id: "02",
+			icon: <Search className="w-6 h-6 text-primary" />,
 			title: "Do your research",
-			description:
-				"Explore reference sites, get a preliminary quote, and review our contracts.",
+			description: "Explore reference sites, get a preliminary quote, and review our industry-leading contracts. Transparency is our foundation.",
 		},
 		{
-			icon: <PencilRuler className="w-8 h-8 text-lime-500" />,
+			id: "03",
+			icon: <PencilRuler className="w-6 h-6 text-primary" />,
 			title: "Begin design",
-			description:
-				"Make the design phase payment to begin crafting your dream home designed by our empanelled architects.",
+			description: "Make the design phase payment to begin crafting your dream home designed by our empanelled architects. Watch your vision take form.",
 		},
 		{
-			icon: <Hammer className="w-8 h-8 text-lime-500" />,
+			id: "04",
+			icon: <Hammer className="w-6 h-6 text-primary" />,
 			title: "Pre-Construction",
-			description:
-				"Make the pre-construction payment and leave the rest to us — while we finalise designs, conduct soil tests, provide final quotations and project plans, arrange contractor meetings, and complete legal formalities.",
+			description: "We handle the rest—soil tests, final quotations, project plans, contractor meetings, and all legal formalities while you prepare for the build.",
 		},
 		{
-			icon: <Building2 className="w-8 h-8 text-lime-500" />,
+			id: "05",
+			icon: <Building2 className="w-6 h-6 text-primary" />,
 			title: "Construction",
-			description:
-				"Track progress through weekly updates, scheduled meetings, and detailed reports.",
+			description: "Track progress through weekly updates, scheduled meetings, and detailed reports. Watch your dream rise with precision and quality.",
 		},
 		{
-			icon: <Home className="w-8 h-8 text-lime-500" />,
+			id: "06",
+			icon: <Home className="w-6 h-6 text-primary" />,
 			title: "Handover and Housewarming",
-			description:
-				"From dream to reality — enjoy a seamless handover with one-year defect liability support, a structural stability certificate, and a five-year structural warranty for worry-free ownership.",
+			description: "From dream to reality—enjoy a seamless handover backed by a structural stability certificate and a five-year structural warranty.",
 		},
 	];
 
 	return (
-		<div className="w-full bg-gray-50 py-20 px-6 md:px-20">
-			{/* Header Section */}
-			<div className="text-center mb-12">
-				<h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
-					How It Works
-				</h1>
-				<p className="text-gray-600 text-lg md:text-xl max-w-3xl mx-auto">
-					Expertly built homes, from concept to completion in approximately 14 months.
-				</p>
-			</div>
+		<div className="w-full bg-[#f8f9fa] min-h-screen font-sans text-[#1a1a1a]">
+			
+			{/* HERO SECTION - CLEAN & WELCOMING */}
+			<section className="w-full py-24 md:py-32 px-6 flex flex-col items-center text-center space-y-6 bg-white">
+				<motion.div 
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					className="space-y-4 max-w-3xl"
+				>
+					<h1 className="text-4xl md:text-6xl font-bold tracking-tight text-[#0f172a]">
+						Our Building Process at a Glance
+					</h1>
+					<p className="text-neutral-500 text-lg md:text-xl">
+						Follow our streamlined process from concept to handover. Simple, transparent, and built for your peace of mind.
+					</p>
+				</motion.div>
+			</section>
 
-			{/* Image Section */}
-			<div className="w-full mb-16 flex items-center justify-center">
-				<div className="relative w-full max-w-6xl h-[400px]">
-					<Image
-						src={workimg}
-						alt="Our process overview"
-						fill
-						className="rounded-2xl object-cover shadow-md"
-						priority
-					/>
-				</div>
-			</div>
+			{/* TIMELINE SECTION */}
+			<section className="relative max-w-7xl mx-auto px-6 py-20">
+				
+				{/* Central Line */}
+				<div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-primary/20 -translate-x-1/2 hidden md:block" />
 
-			{/* Subheading */}
-			<div className="text-center mb-16 pt-10">
-				<h2 className="text-3xl font-semibold mb-4 text-gray-900">
-					Our Building Process at a Glance
-				</h2>
-				<p className="text-gray-600 max-w-2xl mx-auto">
-					Follow our streamlined process from concept to handover.
-				</p>
-			</div>
+				<div className="space-y-16 md:space-y-0">
+					{steps.map((step, i) => (
+						<div key={i} className={`relative flex items-center justify-between md:mb-32 last:mb-0 w-full flex-col md:flex-row ${i % 2 === 0 ? "" : "md:flex-row-reverse"}`}>
+							
+							{/* Card Container */}
+							<motion.div 
+								initial={{ opacity: 0, x: i % 2 === 0 ? -50 : 50 }}
+								whileInView={{ opacity: 1, x: 0 }}
+								viewport={{ once: true, margin: "-100px" }}
+								transition={{ duration: 0.6, ease: "easeOut" }}
+								className="w-full md:w-[42%] bg-white p-8 md:p-10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-neutral-100 relative z-10"
+							>
+								<div className="space-y-4">
+									<div className="flex items-center gap-3 md:hidden mb-4">
+										<div className="w-12 h-12 rounded-full bg-white border-2 border-primary/20 flex items-center justify-center shadow-sm">
+											{step.icon}
+										</div>
+										<span className="text-xs font-bold text-primary uppercase tracking-widest">Step {step.id}</span>
+									</div>
+									<h3 className="text-2xl md:text-3xl font-bold text-[#0f172a]">{step.title}</h3>
+									<p className="text-neutral-500 leading-relaxed text-base md:text-lg">
+										{step.description}
+									</p>
+								</div>
+							</motion.div>
 
-			{/* Steps in Chain Form */}
-			<div className="relative max-w-4xl mx-auto">
-				{/* Vertical Line */}
-				<div className="absolute left-8 top-0 bottom-0 w-1 bg-lime-200 rounded-full md:left-1/2 md:-translate-x-1/2" />
-
-				{/* Steps */}
-				<div className="flex flex-col gap-12">
-					{steps.map((step, idx) => (
-						<div
-							key={idx}
-							className={`relative flex items-start gap-6 ${
-								idx % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"
-							}`}
-						>
-							{/* Icon Circle */}
-							<div
-								className={`flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-md z-10 md:absolute md:left-1/2 md:-translate-x-1/2`}
+							{/* Central Icon (Desktop) */}
+							<motion.div 
+								initial={{ scale: 0 }}
+								whileInView={{ scale: 1 }}
+								viewport={{ once: true }}
+								className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white border-4 border-primary/10 rounded-full items-center justify-center shadow-xl hidden md:flex z-20"
 							>
 								{step.icon}
-							</div>
+							</motion.div>
 
-							{/* Content Card */}
-							<div
-								className={`bg-white p-6 rounded-xl shadow-lg w-full md:w-[45%] ${
-									idx % 2 === 0 ? "md:ml-auto" : "md:mr-auto"
-								}`}
-							>
-								<h3 className="text-xl font-bold text-gray-900 mb-2">
-									{step.title}
-								</h3>
-								<p className="text-gray-600">{step.description}</p>
-							</div>
+							{/* Empty side for layout balance */}
+							<div className="hidden md:block w-[42%]" />
 						</div>
 					))}
 				</div>
-			</div>
+			</section>
 
-			{/* Book Meeting Section */}
-			<div className="mt-20">
-				<BookMeetingPage />
-			</div>
+			{/* FINAL BOOKING */}
+			<section className="w-full py-20 px-6 md:px-12 bg-[#fafafa] flex flex-col items-center">
+				<div className="w-full max-w-[1400px]">
+					<motion.div 
+						initial={{ opacity: 0, y: 40 }}
+						whileInView={{ opacity: 1, y: 0 }}
+						viewport={{ once: true }}
+						className="bg-white rounded-[3rem] shadow-[0_40px_100px_rgba(0,0,0,0.08)] border border-neutral-100 overflow-hidden min-h-[500px]"
+					>
+						<BookMeetingPage />
+					</motion.div>
+				</div>
+			</section>
 		</div>
 	);
 }

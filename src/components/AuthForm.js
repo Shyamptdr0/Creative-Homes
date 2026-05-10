@@ -97,7 +97,7 @@ export default function AuthForm() {
 
 				{error && <p className="text-red-400 text-center">{error}</p>}
 
-				<button className="w-full bg-lime-500 text-black py-2 rounded hover:bg-lime-400">
+				<button className="w-full bg-primary text-white font-bold py-2 rounded hover:bg-primary/90 transition shadow-lg">
 					{isLogin
 							? "Login"
 							: "Register"}
@@ -109,7 +109,7 @@ export default function AuthForm() {
 					<p>
 						{isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
 						<button
-							className="text-lime-400 underline"
+							className="text-primary hover:text-primary/80 underline font-medium"
 							onClick={() => setIsLogin(!isLogin)}
 						>
 							{isLogin ? "Register" : "Login"}
