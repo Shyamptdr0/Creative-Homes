@@ -5,7 +5,7 @@ import Image from "next/image";
 
 // Background & Hero images
 import bgHome from "../../../../public/Images/img4.jpg";
-import bgHero from "../../../../public/Images/image-home-back.png";
+import bgHero from "../../../../public/Images/imagebg-urban.jpeg";
 import fgHero from "../../../../public/Images/image-home-bg.png";
 import modernProject from "../../../../public/Images/home img2.jpg";
 import projectThumb from "../../../../public/Images/home img1.jpg";
@@ -37,21 +37,41 @@ import {
 	IndianRupee,
 	Speaker,
 	ChevronDown,
-	DraftingCompass
+	DraftingCompass,
+	Building2,
+	Users
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
+import Link from "next/link";
 import BookMeetingPage from "@/app/(client)/components/BookaMeeting";
 import HeaderPage from "./header";
 import FooterPage from "./footer";
 
-const SECTIONS_COUNT = 7; 
+const SECTIONS_COUNT = 7;
 
 export default function HeroPage() {
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [isAnimating, setIsAnimating] = useState(false);
 	const [showNav, setShowNav] = useState(false);
+	const [showRolePopup, setShowRolePopup] = useState(false);
 	const navTimerRef = useRef(null);
 	const touchStartRef = useRef(0);
+
+	// Show onboarding role selection popup once per session
+	useEffect(() => {
+		const hasPopupShown = sessionStorage.getItem("role_popup_shown");
+		if (!hasPopupShown) {
+			const timer = setTimeout(() => {
+				setShowRolePopup(true);
+			}, 1200);
+			return () => clearTimeout(timer);
+		}
+	}, []);
+
+	const closePopup = () => {
+		sessionStorage.setItem("role_popup_shown", "true");
+		setShowRolePopup(false);
+	};
 
 	// SMART HIDE LOGIC
 	const triggerNav = () => {
@@ -91,7 +111,7 @@ export default function HeroPage() {
 		window.addEventListener("wheel", handleWheel, { passive: false });
 		window.addEventListener("touchstart", handleTouchStart, { passive: true });
 		window.addEventListener("touchend", handleTouchEnd, { passive: true });
-		
+
 		return () => {
 			window.removeEventListener("wheel", handleWheel);
 			window.removeEventListener("touchstart", handleTouchStart);
@@ -131,6 +151,98 @@ export default function HeroPage() {
 
 	return (
 		<div className="relative w-full h-screen overflow-hidden bg-white font-sans text-gray-900">
+			{/* WELCOME ONBOARDING POPUP */}
+			<AnimatePresence>
+				{showRolePopup && (
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+					>
+						<motion.div
+							initial={{ scale: 0.9, y: 20, opacity: 0 }}
+							animate={{ scale: 1, y: 0, opacity: 1 }}
+							exit={{ scale: 0.9, y: 20, opacity: 0 }}
+							transition={{ type: "spring", duration: 0.6 }}
+							className="relative w-full max-w-4xl bg-[#0b0d13] border border-white/10 rounded-[3rem] p-8 md:p-12 text-white shadow-2xl overflow-hidden"
+						>
+							{/* Close Button */}
+							<button
+								onClick={closePopup}
+								className="absolute top-6 right-6 text-white/50 hover:text-white text-xs font-bold uppercase tracking-widest px-4 py-2 border border-white/10 hover:border-white/30 rounded-full transition-all"
+							>
+								Skip / Browse
+							</button>
+
+							<div className="absolute -left-32 -bottom-32 w-64 h-64 bg-primary/20 rounded-full blur-[80px] pointer-events-none" />
+							<div className="absolute -right-32 -top-32 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
+
+							<div className="relative z-10 space-y-10">
+								{/* Header */}
+								<div className="text-center space-y-3">
+									<span className="text-primary text-[10px] uppercase font-bold tracking-[0.4em]">Welcome to Urban Landscape</span>
+									<h2 className="text-3xl md:text-5xl font-black tracking-tight leading-none">
+										Who Are You?
+									</h2>
+									<p className="text-neutral-400 text-xs md:text-sm max-w-lg mx-auto leading-relaxed">
+										Choose your role to customize your construction and design experience.
+									</p>
+								</div>
+
+								{/* Two Columns */}
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+									{/* Professional */}
+									<div className="p-6 md:p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:border-primary/30 transition-all flex flex-col justify-between">
+										<div className="space-y-4">
+											<div className="flex items-center gap-3">
+												<div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+													<Building2 className="w-5 h-5" />
+												</div>
+												<h4 className="text-lg font-bold">Join as a Professional</h4>
+											</div>
+											<p className="text-neutral-400 text-xs leading-relaxed">
+												Architects, Engineers, Interior Designers, Contractors & Material Dealers. Grow your business and generate quality leads.
+											</p>
+										</div>
+										<div className="pt-6">
+											<Link href="/join/contractor" onClick={closePopup} className="w-full py-3.5 bg-primary hover:bg-primary/95 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer text-center">
+												Register Now
+												<ArrowRight className="w-4 h-4" />
+											</Link>
+										</div>
+									</div>
+
+									{/* Client */}
+									<div className="p-6 md:p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:border-blue-500/30 transition-all flex flex-col justify-between">
+										<div className="space-y-4">
+											<div className="flex items-center gap-3">
+												<div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400">
+													<Users className="w-5 h-5" />
+												</div>
+												<h4 className="text-lg font-bold">Continue as a Client</h4>
+											</div>
+											<p className="text-neutral-400 text-xs leading-relaxed">
+												Discover verified professionals, compare quotations, and find building solutions that match your budget.
+											</p>
+										</div>
+										<div className="pt-6">
+											<Link href="/join/client" onClick={closePopup} className="w-full py-3.5 bg-white/5 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all border border-white/10 hover:border-blue-500 flex items-center justify-center gap-2 cursor-pointer text-center">
+												Get Started
+												<ArrowRight className="w-4 h-4" />
+											</Link>
+										</div>
+									</div>
+								</div>
+
+								<div className="text-center text-[10px] text-neutral-500 tracking-wider">
+									Building connections. Creating possibilities.
+								</div>
+							</div>
+						</motion.div>
+					</motion.div>
+				)}
+			</AnimatePresence>
 			{/* PREMIUM SIDE NAVIGATION */}
 			<motion.div
 				initial={{ opacity: 0, x: 20 }}
@@ -150,7 +262,7 @@ export default function HeroPage() {
 							className="group relative flex items-center justify-center py-1"
 						>
 							{activeIndex === i && (
-								<motion.div 
+								<motion.div
 									layoutId="navRing"
 									className="absolute inset-0 w-6 h-6 -left-[9px] -top-[1px] border border-primary/40 rounded-full"
 									initial={{ scale: 0.5, opacity: 0 }}
@@ -190,32 +302,81 @@ export default function HeroPage() {
 					<HeaderPage isGlobal={false} />
 					<motion.div style={{ scale }} className="absolute inset-0 z-0">
 						<Image src={bgHero} alt="Background" fill className="object-cover" priority />
-						<div className="absolute inset-0 bg-black/20" />
+						<div className="absolute inset-0 bg-black/40" />
 					</motion.div>
 
-					<div className="relative z-10 text-center space-y-4 max-w-4xl">
-						<motion.h1
-							initial={{ y: 100, opacity: 0 }}
+					<div className="relative z-10 text-center space-y-8 max-w-5xl w-full flex flex-col items-center mt-12">
+						{/* Title */}
+						<div className="space-y-2">
+							<motion.h1
+								initial={{ y: 50, opacity: 0 }}
+								animate={{ y: 0, opacity: 1 }}
+								transition={{ duration: 1, ease: "easeOut" }}
+								className="text-5xl sm:text-7xl lg:text-[6vw] font-bold text-white uppercase tracking-tighter leading-none"
+							>
+								Urban <span className="text-white italic font-serif lowercase">Landscape</span>
+							</motion.h1>
+						</div>
+
+						{/* Cards container */}
+						<motion.div
+							initial={{ y: 50, opacity: 0 }}
 							animate={{ y: 0, opacity: 1 }}
-							transition={{ duration: 1.2, ease: "easeOut" }}
-							className="text-6xl sm:text-8xl lg:text-[10vw] font-bold text-white uppercase tracking-tighter leading-none"
+							transition={{ delay: 0.4, duration: 1, ease: "easeOut" }}
+							className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-4xl w-full px-4"
 						>
-							Urban <span className="text-primary italic font-serif lowercase">Landscape</span>
-						</motion.h1>
-						<motion.p
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							transition={{ delay: 0.8 }}
-							className="text-white/80 text-[10px] sm:text-sm md:text-lg uppercase tracking-[0.3em] sm:tracking-[0.5em] font-light"
-						>
-							Architecture • Construction • Design
-						</motion.p>
+							{/* Card 1: Professional */}
+							<div className="group relative p-6 md:p-8 rounded-[2rem] bg-black/50 border border-white/10 hover:border-primary/50 hover:shadow-primary/10 transition-all flex flex-col justify-between overflow-hidden shadow-2xl backdrop-blur-md text-left">
+								<div className="absolute -right-16 -top-16 w-36 h-36 bg-primary/20 rounded-full blur-[50px] pointer-events-none" />
+								<div className="space-y-4 relative z-10">
+									<div className="w-12 h-12 bg-primary/15 rounded-xl flex items-center justify-center text-primary border border-primary/20">
+										<Building2 className="w-6 h-6" />
+									</div>
+									<div className="space-y-1">
+										<span className="text-neutral-400 text-[9px] uppercase font-bold tracking-widest block">🏢 Professional Portal</span>
+										<h3 className="text-xl md:text-2xl font-bold tracking-tight text-white group-hover:text-primary transition-colors">Join as a Professional</h3>
+										<p className="text-neutral-400 text-xs leading-relaxed">
+											Architects, Engineers, Designers, Contractors & Dealers.
+										</p>
+									</div>
+								</div>
+								<div className="pt-6 relative z-10">
+									<Link href="/join/contractor" className="w-full py-3 bg-white/5 hover:bg-primary text-white hover:text-white rounded-xl font-bold uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 transition-all border border-white/10 group-hover:border-primary text-center">
+										Register Now
+										<ArrowRight className="w-4 h-4" />
+									</Link>
+								</div>
+							</div>
+
+							{/* Card 2: Client */}
+							<div className="group relative p-6 md:p-8 rounded-[2rem] bg-black/50 border border-white/10 hover:border-blue-500/50 hover:shadow-blue-500/10 transition-all flex flex-col justify-between overflow-hidden shadow-2xl backdrop-blur-md text-left">
+								<div className="absolute -right-16 -top-16 w-36 h-36 bg-blue-500/15 rounded-full blur-[50px] pointer-events-none" />
+								<div className="space-y-4 relative z-10">
+									<div className="w-12 h-12 bg-blue-500/15 rounded-xl flex items-center justify-center text-blue-400 border border-blue-500/20">
+										<Users className="w-6 h-6" />
+									</div>
+									<div className="space-y-1">
+										<span className="text-neutral-400 text-[9px] uppercase font-bold tracking-widest block">🏠 Client Portal</span>
+										<h3 className="text-xl md:text-2xl font-bold tracking-tight text-white group-hover:text-blue-400 transition-colors">Continue as a Client</h3>
+										<p className="text-neutral-400 text-xs leading-relaxed">
+											Discover verified construction and interior specialists near you.
+										</p>
+									</div>
+								</div>
+								<div className="pt-6 relative z-10">
+									<Link href="/join/client" className="w-full py-3 bg-white/5 hover:bg-blue-500 text-white hover:text-white rounded-xl font-bold uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 transition-all border border-white/10 group-hover:border-blue-500 text-center">
+										Get Started
+										<ArrowRight className="w-4 h-4" />
+									</Link>
+								</div>
+							</div>
+						</motion.div>
 					</div>
 
-					<div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
-						<span className="text-white/50 text-[10px] uppercase tracking-widest">Scroll to explore</span>
-						<motion.div animate={{ y: [0, 10, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
-							<ChevronDown className="text-white w-6 h-6" />
+					<div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+						<span className="text-white/40 text-[9px] uppercase tracking-widest">Scroll to explore</span>
+						<motion.div animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
+							<ChevronDown className="text-white w-5 h-5 opacity-70" />
 						</motion.div>
 					</div>
 				</section>

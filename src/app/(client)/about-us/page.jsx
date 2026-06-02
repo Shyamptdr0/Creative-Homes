@@ -44,10 +44,10 @@ export default function AboutPage() {
 					transition={{ duration: 1 }}
 					className="relative z-10 text-center space-y-6"
 				>
-					<span className="text-primary font-bold text-xs uppercase tracking-[0.5em]">The Urban Landscape Narrative</span>
+					<span className="text-primary font-bold text-xs uppercase tracking-[0.5em]">About Urban Landscape</span>
 					<h1 className="text-6xl md:text-9xl font-bold text-white tracking-tighter leading-[0.9]">
-						Crafting <br />
-						<span className="text-neutral-500 italic font-serif">Legacies</span>.
+						Building <br />
+						<span className="text-neutral-500 italic font-serif">Together</span>.
 					</h1>
 				</motion.div>
 			</section>
@@ -65,22 +65,23 @@ export default function AboutPage() {
 					>
 						<motion.div variants={fadeInUp} className="space-y-4">
 							<h2 className="text-4xl md:text-6xl font-bold tracking-tighter text-neutral-900 leading-tight">
-								Architecture as <br />
-								<span className="text-neutral-400 italic font-serif">Human Legacy</span>.
+								A Smart <br />
+								<span className="text-neutral-400 italic font-serif">All-in-One Platform</span>.
 							</h2>
 						</motion.div>
 
-						<motion.p variants={fadeInUp} className="text-neutral-500 text-lg leading-relaxed font-medium max-w-xl">
-							At Urban Landscape, our architecture transcends the confines of mere construction; it’s an invitation to experience space in its purest form. Each structure we conceive is a narrative waiting to be explored, a canvas where functionality and artistry converge.
-						</motion.p>
+						<motion.div variants={fadeInUp} className="text-neutral-500 text-lg leading-relaxed font-medium max-w-xl space-y-4">
+							<p>Urban Landscape is a smart, all-in-one platform designed to bring the entire construction ecosystem together. It empowers architects, engineers, interior designers, contractors, and material dealers to register themselves and become part of a growing, trusted community.</p>
+							<p>For businesses, Urban Landscape opens doors to genuine potential clients. And for clients, it simplifies the journey of building or designing their space by helping them easily discover the right professionals based on their needs, style, and budget.</p>
+						</motion.div>
 
 						{/* STATS HUB */}
 						<motion.div variants={staggerContainer} className="grid grid-cols-2 gap-12 pt-10 border-t border-neutral-100">
 							{[
-								{ icon: <History />, label: "Years of Legacy", val: "32+" },
-								{ icon: <Layers />, label: "Masterworks Built", val: "598" },
-								{ icon: <Award />, label: "Global Accolades", val: "45" },
-								{ icon: <Users />, label: "Design Experts", val: "100+" }
+								{ icon: <Users />, label: "Registered Pros", val: "1000+" },
+								{ icon: <Layers />, label: "Projects Planned", val: "500+" },
+								{ icon: <Award />, label: "Verified Dealers", val: "300+" },
+								{ icon: <History />, label: "Happy Clients", val: "2000+" }
 							].map((stat, i) => (
 								<motion.div key={i} variants={fadeInUp} className="space-y-2">
 									<div className="flex items-center gap-3 text-primary">
@@ -109,8 +110,8 @@ export default function AboutPage() {
 								<DraftingCompass className="w-6 h-6" />
 							</div>
 							<div>
-								<p className="text-[9px] uppercase font-black text-neutral-400 tracking-widest">Precision Engineered</p>
-								<p className="text-sm font-bold text-neutral-900 uppercase">Urban Standard</p>
+								<p className="text-[9px] uppercase font-black text-neutral-400 tracking-widest">Verified Network</p>
+								<p className="text-sm font-bold text-neutral-900 uppercase">Trusted Pros</p>
 							</div>
 						</div>
 					</motion.div>
@@ -128,9 +129,9 @@ export default function AboutPage() {
 						className="grid grid-cols-1 md:grid-cols-3 gap-20"
 					>
 						{[
-							{ title: "Visionary Design", desc: "We don't just follow trends; we set them by blending avant-garde concepts with local heritage.", icon: <Compass /> },
-							{ title: "Technical Precision", desc: "Our engineering standards exceed industry norms, ensuring structural integrity for generations.", icon: <Layers /> },
-							{ title: "Pure Materiality", desc: "We source only the finest materials, focusing on sustainability and tactile excellence.", icon: <Award /> }
+							{ title: "Seamless Connections", desc: "Thoughtfully integrating price estimation, rate comparison, and direct communication into one unified platform.", icon: <Users /> },
+							{ title: "Reliable Choices", desc: "No more endless searching or confusion. Find verified professionals based on your specific needs, style, and budget.", icon: <Award /> },
+							{ title: "Complete Clarity", desc: "Removing the hassle from construction and design, giving you the confidence to plan and create from the comfort of your home.", icon: <Compass /> }
 						].map((value, i) => (
 							<motion.div key={i} variants={fadeInUp} className="space-y-6 group">
 								<div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-primary border border-white/10 group-hover:bg-primary group-hover:text-white transition-all duration-500">
@@ -162,20 +163,21 @@ export default function AboutPage() {
 						className="lg:col-span-7 space-y-10"
 					>
 						<motion.div variants={fadeInUp} className="inline-block px-4 py-1.5 bg-primary/5 border border-primary/10 rounded-full">
-							<span className="text-primary font-bold text-[10px] uppercase tracking-[0.4em]">Design Leadership</span>
+							<span className="text-primary font-bold text-[10px] uppercase tracking-[0.4em]">The Vision</span>
 						</motion.div>
 						<motion.h2 variants={fadeInUp} className="text-5xl md:text-8xl font-bold tracking-tighter text-neutral-900 leading-[0.85]">
-							Redefining <br />
-							<span className="text-neutral-300 italic font-serif">Boundaries</span>.
+							Create with <br />
+							<span className="text-neutral-300 italic font-serif">Confidence</span>.
 						</motion.h2>
-						<motion.p variants={fadeInUp} className="text-neutral-500 text-xl leading-relaxed font-medium">
-							Our mission is to blend avant-garde architecture with the timeless sensibilities of our heritage, creating spaces that aren't just built, but crafted.
-						</motion.p>
+						<motion.div variants={fadeInUp} className="text-neutral-500 text-xl leading-relaxed font-medium space-y-4">
+							<p>From price estimation and rate comparison to seamless connections—all the essentials are thoughtfully integrated into one platform. No more endless searching or confusion—just clarity, convenience, and reliable choices.</p>
+							<p>Urban Landscape is built to remove the hassle from construction and design, so you can plan, connect, and create your dream space with confidence—right from the comfort of your home.</p>
+						</motion.div>
 						<motion.button 
 							variants={fadeInUp}
 							className="group flex items-center gap-6 px-12 py-6 bg-black text-white rounded-2xl font-bold uppercase text-[11px] tracking-[0.4em] hover:bg-primary transition-all duration-500 shadow-2xl"
 						>
-							Our Leadership Portfolio
+							Join the Community
 							<MoveRight className="w-5 h-5 transition-transform group-hover:translate-x-2" />
 						</motion.button>
 					</motion.div>
