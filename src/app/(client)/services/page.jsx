@@ -212,7 +212,7 @@ export default function ServicePage() {
 			{/* 3. THE URBAN ADVANTAGE - HIGH FIDELITY HUB */}
 			<section className="bg-[#0A0A0A] py-48 px-6 md:px-24 relative overflow-hidden">
 				<div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "100px 100px" }} />
-				
+
 				<div className="max-w-[1500px] mx-auto grid lg:grid-cols-2 gap-32 items-center relative z-10">
 					<div className="space-y-16">
 						<div className="space-y-6">
@@ -272,7 +272,7 @@ export default function ServicePage() {
 				<BookMeetingPage />
 			</section>
 
-			<Footer />
+			{/* 	<Footer /> */}
 		</div>
 	);
 }

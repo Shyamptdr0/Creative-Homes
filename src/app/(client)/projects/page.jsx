@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
 	Filter, 
@@ -13,132 +14,10 @@ import {
 	IndianRupee,
 	Search,
 	X,
-	ArrowRight
+	ArrowRight,
+	Home
 } from "lucide-react";
 
-const projectsData = [
-	{
-		id: 1,
-		image: "/Images/house.jpg",
-		name: "Mr Afzal Khan's Residence",
-		city: "Indore",
-		floors: "G+1",
-		dimensions: "30x50 sq. ft",
-		facing: "North",
-		budget: "40-50L"
-	},
-	{
-		id: 2,
-		image: "/Images/generated/v1.png",
-		name: "Mr Lloyd Lopez's Residence",
-		city: "Indore",
-		floors: "G+1",
-		dimensions: "40x60 sq. ft",
-		facing: "North",
-		budget: "80-90L"
-	},
-	{
-		id: 3,
-		image: "/Images/generated/v2.png",
-		name: "Mr Harshit Pandey's Residence",
-		city: "Indore",
-		floors: "G+1",
-		dimensions: "20x40 sq. ft",
-		facing: "South",
-		budget: "--"
-	},
-	{
-		id: 4,
-		image: "/Images/generated/v3.png",
-		name: "Mr Sreekanth Gunda's Residence",
-		city: "Indore",
-		floors: "G+3",
-		dimensions: "30x50 sq. ft",
-		facing: "North",
-		budget: "80-90L"
-	},
-	{
-		id: 5,
-		image: "/Images/house.jpg",
-		name: "Mr. Vishwanathan's Residence",
-		description: "It’s a modern, minimal, thoughtfully designed home that blends practicality and style.",
-		city: "Indore",
-		floors: "G+1",
-		dimensions: "40x50 sq. ft",
-		facing: "South",
-		budget: "70-80L"
-	},
-	{
-		id: 6,
-		image: "/Images/generated/v1.png",
-		name: "Mr. Toshi Daggar's Residence",
-		city: "Indore",
-		floors: "G+2",
-		dimensions: "30x40 sq. ft",
-		facing: "West",
-		budget: "50-60L"
-	},
-	{
-		id: 7,
-		image: "/Images/generated/v2.png",
-		name: "Ms Mary ES Residence",
-		city: "Indore",
-		floors: "G+1",
-		dimensions: "40x60 sq. ft",
-		facing: "East",
-		budget: "--"
-	},
-	{
-		id: 8,
-		image: "/Images/generated/v3.png",
-		name: "Mr Jagadeesan's Residence",
-		city: "Indore",
-		floors: "G+1",
-		dimensions: "30x40 sq. ft",
-		facing: "South",
-		budget: "40-50L"
-	},
-	{
-		id: 9,
-		image: "/Images/house.jpg",
-		name: "Ms Kasina Shravya's Residence",
-		city: "Indore",
-		floors: "G+2",
-		dimensions: "40x60 sq. ft",
-		facing: "East",
-		budget: "80-90L"
-	},
-	{
-		id: 10,
-		image: "/Images/generated/v1.png",
-		name: "Mr Sunil Katta's Residence",
-		city: "Indore",
-		floors: "G+3",
-		dimensions: "30x50 sq. ft",
-		facing: "West",
-		budget: "70-80L"
-	},
-	{
-		id: 11,
-		image: "/Images/generated/v2.png",
-		name: "Mr Basavaraj Madiggond's Residence",
-		city: "Indore",
-		floors: "G+1",
-		dimensions: "30x50 sq. ft",
-		facing: "South",
-		budget: "70-80L"
-	},
-	{
-		id: 12,
-		image: "/Images/generated/v3.png",
-		name: "Mr Arun Balaji's Residence",
-		city: "Indore",
-		floors: "G+1",
-		dimensions: "40x60 sq. ft",
-		facing: "West",
-		budget: "40-50L"
-	}
-];
 
 const filtersData = {
 	cities: ["Indore"],
@@ -147,6 +26,8 @@ const filtersData = {
 };
 
 export default function ProjectsPage() {
+	const [projects, setProjects] = useState([]);
+	const [loading, setLoading] = useState(true);
 	const [activeFilters, setActiveFilters] = useState({
 		city: "Indore",
 		floor: "All",
@@ -154,7 +35,25 @@ export default function ProjectsPage() {
 	});
 	const [searchQuery, setSearchQuery] = useState("");
 
-	const filteredProjects = projectsData.filter(p => {
+	React.useEffect(() => {
+		fetchProjects();
+	}, []);
+
+	const fetchProjects = async () => {
+		try {
+			const res = await fetch("/api/portfolio");
+			const data = await res.json();
+			if (Array.isArray(data)) {
+				setProjects(data);
+			}
+		} catch (error) {
+			console.error("Failed to fetch projects", error);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const filteredProjects = projects.filter(p => {
 		const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
 		const matchesFloor = activeFilters.floor === "All" || p.floors === activeFilters.floor;
 		const matchesDimension = activeFilters.dimension === "All" || p.dimensions === activeFilters.dimension;
@@ -287,60 +186,65 @@ export default function ProjectsPage() {
 						</div>
 
 						{/* Grid */}
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-							{filteredProjects.map((project) => (
-								<motion.div 
-									key={project.id}
-									initial={{ opacity: 0, y: 20 }}
-									whileInView={{ opacity: 1, y: 0 }}
-									viewport={{ once: true }}
-									className="group bg-white rounded-[2.5rem] overflow-hidden border border-neutral-100 hover:shadow-[0_30px_60px_rgba(0,0,0,0.06)] transition-all duration-500"
-								>
-									<div className="relative aspect-[4/3] overflow-hidden">
-										<Image 
-											src={project.image} 
-											alt={project.name} 
-											fill 
-											className="object-cover transition-transform duration-700 group-hover:scale-110" 
-										/>
-										<div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-									</div>
+						{loading ? (
+							<div className="flex justify-center items-center py-20">
+								<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+							</div>
+						) : filteredProjects.length === 0 ? (
+							<div className="text-center py-20 bg-neutral-50 rounded-3xl">
+								<p className="text-neutral-500 font-medium">No projects found matching your criteria.</p>
+							</div>
+						) : (
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+								{filteredProjects.map((project) => (
+									<Link href={`/projects/${project.id}`} key={project.id} className="block group">
+										<motion.div 
+											initial={{ opacity: 0, y: 20 }}
+											whileInView={{ opacity: 1, y: 0 }}
+											viewport={{ once: true }}
+											className="bg-[#fcfbf9] rounded-[2rem] overflow-hidden hover:shadow-lg transition-all duration-300 border border-neutral-100"
+										>
+											<div className="relative aspect-[4/3] overflow-hidden">
+												<Image 
+													src={project.image} 
+													alt={project.name} 
+													fill 
+													className="object-cover transition-transform duration-700 group-hover:scale-105" 
+												/>
+											</div>
 
-									<div className="p-8 space-y-6">
-										<div className="space-y-1">
-											<h3 className="text-xl font-black text-[#0f172a] group-hover:text-primary transition-colors">{project.name}</h3>
-											<div className="flex items-center gap-2 text-neutral-400">
-												<MapPin className="w-3 h-3" />
-												<span className="text-[10px] font-bold uppercase tracking-widest">{project.city}</span>
-											</div>
-										</div>
+											<div className="p-6 md:p-8 space-y-4">
+												<h3 className="text-xl font-medium text-[#0f172a]">{project.name}</h3>
+												
+												<div className="flex items-center gap-2 text-neutral-500">
+													<MapPin className="w-4 h-4" />
+													<span className="text-sm">{project.city}</span>
+												</div>
 
-										<div className="grid grid-cols-2 gap-y-5 border-t border-neutral-50 pt-6">
-											<div className="space-y-1">
-												<p className="text-[8px] font-black uppercase text-neutral-300 tracking-widest">Floors</p>
-												<p className="text-xs font-bold flex items-center gap-2"><Layers className="w-3 h-3 text-primary" /> {project.floors}</p>
+												<div className="flex flex-wrap items-center gap-4 text-neutral-600 pt-4">
+													<div className="flex items-center gap-2 text-sm">
+														<Home className="w-4 h-4 text-neutral-400" />
+														<span>{project.floors}</span>
+													</div>
+													<div className="flex items-center gap-2 text-sm">
+														<Maximize className="w-4 h-4 text-neutral-400" />
+														<span>{project.dimensions}</span>
+													</div>
+													<div className="flex items-center gap-2 text-sm">
+														<Compass className="w-4 h-4 text-neutral-400" />
+														<span>{project.facing}</span>
+													</div>
+													<div className="flex items-center gap-2 text-sm">
+														<IndianRupee className="w-4 h-4 text-neutral-400" />
+														<span>{project.budget}</span>
+													</div>
+												</div>
 											</div>
-											<div className="space-y-1">
-												<p className="text-[8px] font-black uppercase text-neutral-300 tracking-widest">Dimensions</p>
-												<p className="text-xs font-bold flex items-center gap-2"><Maximize className="w-3 h-3 text-primary" /> {project.dimensions}</p>
-											</div>
-											<div className="space-y-1">
-												<p className="text-[8px] font-black uppercase text-neutral-300 tracking-widest">Facing</p>
-												<p className="text-xs font-bold flex items-center gap-2"><Compass className="w-3 h-3 text-primary" /> {project.facing}</p>
-											</div>
-											<div className="space-y-1">
-												<p className="text-[8px] font-black uppercase text-neutral-300 tracking-widest">Budget</p>
-												<p className="text-xs font-bold flex items-center gap-2"><IndianRupee className="w-3 h-3 text-primary" /> {project.budget}</p>
-											</div>
-										</div>
-
-										<button className="w-full py-4 rounded-2xl bg-neutral-50 group-hover:bg-black group-hover:text-white transition-all text-[10px] font-black uppercase tracking-widest border border-neutral-100">
-											View Project Details
-										</button>
-									</div>
-								</motion.div>
-							))}
-						</div>
+										</motion.div>
+									</Link>
+								))}
+							</div>
+						)}
 
 						{/* Pagination */}
 						<div className="pt-12 flex justify-center">

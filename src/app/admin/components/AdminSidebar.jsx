@@ -13,7 +13,8 @@ import {
 	BrickWall,
 	Stars,
 	ChartBarIncreasing,
-	IndianRupee, PencilRuler, MessageCircle
+	IndianRupee, PencilRuler, MessageCircle, Image as ImageIcon,
+	Globe
 } from "lucide-react";
 import {DEFAULT_RUNTIME_WEBPACK} from "next/constants";
 
@@ -61,6 +62,8 @@ export default function AdminDashboard() {
 		{ title: "Stage", icon: ChartBarIncreasing },
 		{ title: "Material", icon: BrickWall},
 		{ title: "Payments" ,icon: IndianRupee},
+		{ title: "Portfolio", icon: ImageIcon},
+		{ title: "Website", icon: Globe},
 		{ title: "Query", icon: MessageCircle, badge: unreadQueriesCount},
 		// { title: "Profile", icon: CircleUser }
 	];

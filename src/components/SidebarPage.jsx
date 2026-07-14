@@ -16,7 +16,7 @@ import {
 
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 export default function SidebarPage({
@@ -26,11 +26,16 @@ export default function SidebarPage({
                                     }) {
 	const router = useRouter();
 
-	const [activePage, setActivePage] = useState(() => {
-		if (typeof window !== "undefined") {
-			return sessionStorage.getItem(`${role}-activePage`) || menuItems[0]?.title;
+	const [activePage, setActivePage] = useState(menuItems[0]?.title || "Home");
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+		const savedPage = sessionStorage.getItem(`${role}-activePage`);
+		if (savedPage) {
+			setActivePage(savedPage);
 		}
-	});
+	}, [role]);
 
 	const handleSetActivePage = (page) => {
 		setActivePage(page);
@@ -41,6 +46,11 @@ export default function SidebarPage({
 		sessionStorage.clear();
 		router.push(`/${role}/login`);
 	};
+
+	if (!mounted) {
+		// Prevent hydration mismatch by rendering a minimal shell or null until mounted
+		return null;
+	}
 
 	return (
 		<SidebarProvider>

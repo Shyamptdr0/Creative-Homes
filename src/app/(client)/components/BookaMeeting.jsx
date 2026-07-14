@@ -56,9 +56,9 @@ export default function BookMeetingPage() {
 
 					<div className="space-y-6">
 						{[
-							{ icon: <Mail />, label: "Email Us", val: "inquiry@creativehomes.com" },
-							{ icon: <PhoneCall />, label: "Call Directly", val: "+91 98765 43210" },
-							{ icon: <MapPin />, label: "Visit Studio", val: "C-Scheme, Jaipur" }
+							{ icon: <Mail />, label: "Email Us", val: "sharadchaurasia@urbanlandscape.in" },
+							{ icon: <PhoneCall />, label: "Call Directly", val: "+91 98276 02453" },
+							{ icon: <MapPin />, label: "Visit Studio", val: "Vijay Nagar, Indore" }
 						].map((item, i) => (
 							<motion.div
 								key={i}

@@ -5,12 +5,12 @@ import Image from "next/image";
 import architect from "../../../../public/Images/services/Drawing.jpg"; // left image
 import sketch from "../../../../public/Images/workimg.jpg"; // right image
 import { motion } from "framer-motion";
-import { 
-	Award, 
-	Users, 
-	Layers, 
-	History, 
-	ArrowRight, 
+import {
+	Award,
+	Users,
+	Layers,
+	History,
+	ArrowRight,
 	MoveRight,
 	Compass,
 	DraftingCompass
@@ -38,7 +38,7 @@ export default function AboutPage() {
 			{/* 1. CINEMATIC HERO */}
 			<section className="relative w-full pt-48 pb-32 flex flex-col items-center justify-center px-6 md:px-24 overflow-hidden bg-[#0A0A0A]">
 				<div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
-				<motion.div 
+				<motion.div
 					initial={{ opacity: 0, y: 30 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 1 }}
@@ -56,7 +56,7 @@ export default function AboutPage() {
 			<section className="w-full py-40 px-6 md:px-24 bg-white relative">
 				<div className="max-w-[1500px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
 					{/* LEFT: THE NARRATIVE */}
-					<motion.div 
+					<motion.div
 						initial="initial"
 						whileInView="whileInView"
 						viewport={{ once: true }}
@@ -95,7 +95,7 @@ export default function AboutPage() {
 					</motion.div>
 
 					{/* RIGHT: THE ARTISTRY */}
-					<motion.div 
+					<motion.div
 						initial={{ opacity: 0, x: 50 }}
 						whileInView={{ opacity: 1, x: 0 }}
 						transition={{ duration: 1.2 }}
@@ -103,7 +103,7 @@ export default function AboutPage() {
 					>
 						<Image src={sketch} alt="Architectural Sketch" fill className="object-cover transition-transform duration-[2s] group-hover:scale-110" />
 						<div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
-						
+
 						{/* FLOATING BADGE */}
 						<div className="absolute bottom-10 right-10 bg-white p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6">
 							<div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
@@ -121,7 +121,7 @@ export default function AboutPage() {
 			{/* 3. CORE VALUES SECTION */}
 			<section className="w-full py-32 px-6 md:px-24 bg-[#0A0A0A] text-white overflow-hidden relative">
 				<div className="max-w-[1500px] mx-auto">
-					<motion.div 
+					<motion.div
 						initial="initial"
 						whileInView="whileInView"
 						viewport={{ once: true }}
@@ -155,7 +155,7 @@ export default function AboutPage() {
 					</div>
 
 					{/* CONTENT POD */}
-					<motion.div 
+					<motion.div
 						initial="initial"
 						whileInView="whileInView"
 						viewport={{ once: true }}
@@ -173,7 +173,7 @@ export default function AboutPage() {
 							<p>From price estimation and rate comparison to seamless connections—all the essentials are thoughtfully integrated into one platform. No more endless searching or confusion—just clarity, convenience, and reliable choices.</p>
 							<p>Urban Landscape is built to remove the hassle from construction and design, so you can plan, connect, and create your dream space with confidence—right from the comfort of your home.</p>
 						</motion.div>
-						<motion.button 
+						<motion.button
 							variants={fadeInUp}
 							className="group flex items-center gap-6 px-12 py-6 bg-black text-white rounded-2xl font-bold uppercase text-[11px] tracking-[0.4em] hover:bg-primary transition-all duration-500 shadow-2xl"
 						>
@@ -189,7 +189,7 @@ export default function AboutPage() {
 				<BookMeetingPage />
 			</section>
 
-			<Footer />
+			{/* <Footer /> */}
 		</div>
 	);
 }

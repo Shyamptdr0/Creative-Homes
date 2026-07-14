@@ -23,11 +23,11 @@ const staggerContainer = {
 export default function ContactPage() {
 	return (
 		<div className="bg-white font-sans selection:bg-primary selection:text-white relative">
-			
+
 			{/* 1. CINEMATIC HERO */}
 			<section className="relative pt-48 pb-32 flex flex-col items-center justify-center px-6 md:px-24 overflow-hidden bg-[#0A0A0A]">
 				<div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
-				<motion.div 
+				<motion.div
 					initial={{ opacity: 0, y: 30 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 1 }}
@@ -44,10 +44,10 @@ export default function ContactPage() {
 			{/* 2. CONTACT HUB */}
 			<section className="py-32 px-6 md:px-24 max-w-[1500px] mx-auto">
 				<div className="grid grid-cols-1 lg:grid-cols-12 gap-24">
-					
+
 					{/* LEFT: INFORMATION PORTAL */}
 					<div className="lg:col-span-5 space-y-16">
-						<motion.div 
+						<motion.div
 							initial="initial"
 							whileInView="whileInView"
 							viewport={{ once: true }}
@@ -64,11 +64,13 @@ export default function ContactPage() {
 
 						<div className="space-y-10">
 							{[
-								{ icon: <Mail />, title: "Digital Correspondence", val: "concierge@urbanlandscape.com", desc: "For design proposals & media." },
-								{ icon: <Phone />, title: "Direct Communication", val: "+91 98765 43210", desc: "Available Mon-Fri, 9am - 6pm." },
-								{ icon: <MapPin />, title: "Design Studio", val: "240, Architectural Plaza, Jaipur", desc: "Rajasthan, India - 302001" },
+								{ icon: <Mail />, title: "General Inquiry", val: "info@urbanlandscape.in", desc: "For general questions & info." },
+								{ icon: <Mail />, title: "Direct Contact", val: "sharadchaurasia@urbanlandscape.in", desc: "Sharad Chaurasia" },
+								{ icon: <Mail />, title: "Direct Contact", val: "prachichaurasia@urbanlandscape.in", desc: "Prachi Chaurasia" },
+								{ icon: <Phone />, title: "Direct Communication", val: "+91 98276 02453", desc: "Available Mon-Fri, 9am - 6pm." },
+								{ icon: <MapPin />, title: "Design Studio", val: "1641, Scheme No. 114 Part I", desc: "Vijay Nagar, Indore 452010" },
 							].map((item, i) => (
-								<motion.div 
+								<motion.div
 									key={i}
 									initial={{ opacity: 0, x: -20 }}
 									whileInView={{ opacity: 1, x: 0 }}
@@ -100,7 +102,7 @@ export default function ContactPage() {
 					</div>
 
 					{/* RIGHT: MESSAGE PORTAL */}
-					<motion.div 
+					<motion.div
 						initial={{ opacity: 0, y: 40 }}
 						whileInView={{ opacity: 1, y: 0 }}
 						viewport={{ once: true }}
@@ -108,7 +110,7 @@ export default function ContactPage() {
 						className="lg:col-span-7 bg-white p-12 md:p-20 rounded-[4rem] shadow-[0_50px_100px_rgba(0,0,0,0.04)] border border-neutral-100 relative overflow-hidden"
 					>
 						<div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -mr-32 -mt-32" />
-						
+
 						<div className="space-y-12 relative z-10">
 							<div className="space-y-4">
 								<h3 className="text-4xl font-bold tracking-tighter text-neutral-900">Start a <span className="text-neutral-300 italic font-serif">Dialogue</span>.</h3>
@@ -119,33 +121,33 @@ export default function ContactPage() {
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 									<div className="space-y-2">
 										<label className="text-[10px] uppercase font-black text-neutral-400 tracking-widest ml-1">Full Identity</label>
-										<Input 
-											placeholder="Your Name" 
-											className="h-16 rounded-2xl border-neutral-100 focus:ring-primary/20 focus:border-primary transition-all text-neutral-900 font-medium" 
+										<Input
+											placeholder="Your Name"
+											className="h-16 rounded-2xl border-neutral-100 focus:ring-primary/20 focus:border-primary transition-all text-neutral-900 font-medium"
 										/>
 									</div>
 									<div className="space-y-2">
 										<label className="text-[10px] uppercase font-black text-neutral-400 tracking-widest ml-1">Digital Address</label>
-										<Input 
-											placeholder="email@example.com" 
-											className="h-16 rounded-2xl border-neutral-100 focus:ring-primary/20 focus:border-primary transition-all text-neutral-900 font-medium" 
+										<Input
+											placeholder="email@example.com"
+											className="h-16 rounded-2xl border-neutral-100 focus:ring-primary/20 focus:border-primary transition-all text-neutral-900 font-medium"
 										/>
 									</div>
 								</div>
 
 								<div className="space-y-2">
 									<label className="text-[10px] uppercase font-black text-neutral-400 tracking-widest ml-1">Project Interest</label>
-									<Input 
-										placeholder="Construction, Interior, Consultancy..." 
-										className="h-16 rounded-2xl border-neutral-100 focus:ring-primary/20 focus:border-primary transition-all text-neutral-900 font-medium" 
+									<Input
+										placeholder="Construction, Interior, Consultancy..."
+										className="h-16 rounded-2xl border-neutral-100 focus:ring-primary/20 focus:border-primary transition-all text-neutral-900 font-medium"
 									/>
 								</div>
 
 								<div className="space-y-2">
 									<label className="text-[10px] uppercase font-black text-neutral-400 tracking-widest ml-1">The Vision</label>
-									<Textarea 
-										placeholder="Describe your architectural aspirations..." 
-										className="min-h-[200px] rounded-3xl border-neutral-100 focus:ring-primary/20 focus:border-primary transition-all text-neutral-900 font-medium p-6" 
+									<Textarea
+										placeholder="Describe your architectural aspirations..."
+										className="min-h-[200px] rounded-3xl border-neutral-100 focus:ring-primary/20 focus:border-primary transition-all text-neutral-900 font-medium p-6"
 									/>
 								</div>
 
@@ -160,7 +162,7 @@ export default function ContactPage() {
 			</section>
 
 			{/* 3. GLOBAL FOOTER */}
-			<Footer />
+			{/* <Footer /> */}
 		</div>
 	);
 }

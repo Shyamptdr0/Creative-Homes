@@ -61,13 +61,21 @@ export default function FooterPage({ isGlobal = false }) {
 					<div className="space-y-8">
 						<h3 className="text-[10px] uppercase font-bold tracking-[0.4em] text-white/20">Contact</h3>
 						<div className="space-y-4 text-sm font-medium text-white/50">
-							<a href="mailto:info@urbanlandscape.com" className="flex items-center gap-3 hover:text-white transition-colors">
-								<Mail size={16} className="text-primary" />
-								<span>info@urbanlandscape.com</span>
+							<a href="mailto:info@urbanlandscape.in" className="flex items-center gap-3 hover:text-white transition-colors">
+								<Mail size={16} className="text-primary shrink-0" />
+								<span className="truncate">info@urbanlandscape.in</span>
 							</a>
-							<a href="tel:+919876543210" className="flex items-center gap-3 hover:text-white transition-colors">
+							<a href="mailto:sharadchaurasia@urbanlandscape.in" className="flex items-center gap-3 hover:text-white transition-colors">
+								<Mail size={16} className="text-primary shrink-0" />
+								<span className="truncate">sharadchaurasia@urbanlandscape.in</span>
+							</a>
+							<a href="mailto:prachichaurasia@urbanlandscape.in" className="flex items-center gap-3 hover:text-white transition-colors">
+								<Mail size={16} className="text-primary shrink-0" />
+								<span className="truncate">prachichaurasia@urbanlandscape.in</span>
+							</a>
+							<a href="tel:+919827602453" className="flex items-center gap-3 hover:text-white transition-colors">
 								<Phone size={16} className="text-primary" />
-								<span>+91 98765 43210</span>
+								<span>+91 98276 02453</span>
 							</a>
 						</div>
 					</div>
@@ -76,7 +84,7 @@ export default function FooterPage({ isGlobal = false }) {
 						<h3 className="text-[10px] uppercase font-bold tracking-[0.4em] text-white/20">Office</h3>
 						<div className="flex items-start gap-3 text-sm font-medium text-white/50">
 							<MapPin size={16} className="text-primary shrink-0" />
-							<span>240, Russell Street, <br /> QT Melbourne, Victoria</span>
+							<span>1641, Scheme No. 114 Part I, <br /> Vijay Nagar, Indore 452010</span>
 						</div>
 					</div>
 
